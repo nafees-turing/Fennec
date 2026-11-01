@@ -11,10 +11,11 @@
 </head>
 <body>
   <div class="app">
-    <aside class="rail">
+    <aside class="rail" id="rail">
       <div class="brand">
+        <button type="button" id="rail-toggle" class="icon-btn" title="Collapse sidebar" aria-label="Collapse sidebar">☰</button>
         <img class="mark" src="/static/logo.png" alt="">
-        <div>
+        <div class="brand-text">
           <strong>Fennec</strong>
           <p>Local OSINT</p>
         </div>
@@ -29,52 +30,42 @@
         <nav id="case-list" class="nav-list" aria-label="Cases"></nav>
       </section>
 
-      <section class="rail-block">
+      <section class="rail-block" id="tool-rail">
         <h2>Tools</h2>
-        <p class="hint">Grouped by kind. Select a case, then a tool. Lookups stay on that case.</p>
+        <p class="hint">Click a tool to pin it as a search tag.</p>
         <nav id="tool-list" class="nav-list tools" aria-label="Tools"></nav>
       </section>
     </aside>
 
-    <main class="workspace">
-      <header class="top">
-        <div>
-          <p class="eyebrow" id="case-kicker">No case selected</p>
-          <h1 id="case-title">Select a case to continue</h1>
-          <p id="case-notes" class="notes"></p>
-        </div>
-        <div class="top-actions">
-          <p id="export-links" hidden>
-            <a id="export-json" href="#">JSON</a>
-            <a id="export-html" href="#">HTML</a>
-            <a id="export-pdf" href="#">PDF</a>
-          </p>
-        </div>
-      </header>
-
-      <section id="smart" class="smart" hidden>
+    <div class="stage">
+      <header class="chrome">
         <form id="smart-form" class="smart-form">
-          <input id="smart-input" placeholder="Paste an email, phone, domain, IP, or handle" autocomplete="off">
+          <input id="smart-input" placeholder="Search this case: email, +phone, domain, IP, or handle" autocomplete="off">
           <button type="submit">Look up</button>
         </form>
-        <div id="smart-chips" class="chips" aria-live="polite"></div>
-      </section>
+        <p id="export-links" class="export" hidden>
+          <a id="export-json" href="#">JSON</a>
+          <a id="export-html" href="#">HTML</a>
+          <a id="export-pdf" href="#">PDF</a>
+        </p>
+      </header>
+      <div id="smart-chips" class="chips" aria-live="polite"></div>
 
-      <section id="inspector" class="inspector" hidden>
-        <div>
-          <p class="eyebrow" id="tool-kicker">Tool</p>
-          <h2 id="tool-title">Choose a tool</h2>
-          <p id="tool-summary" class="notes"></p>
-        </div>
-        <form id="tool-form" class="tool-form"></form>
-      </section>
+      <main class="workspace">
+        <header class="top">
+          <div>
+            <p class="eyebrow" id="case-kicker">No case selected</p>
+            <h1 id="case-title">Select a case to continue</h1>
+            <p id="case-notes" class="notes"></p>
+            <p id="case-stats" class="count"></p>
+          </div>
+        </header>
 
-      <section id="welcome" class="welcome">
-        <p>Create or select a case. Paste an identifier in the lookup bar: Fennec detects email, phone, domain, IP, or handle and only runs the close tools. You can still pick one tool by hand.</p>
-      </section>
+        <section id="welcome" class="welcome">
+          <p>Select a case. One search bar at the top detects the identifier. Tags under it are the only tools that will run — click to turn them off. Collapse the sidebar when you want the case page full width.</p>
+        </section>
 
-      <section class="split" id="results" hidden>
-        <div>
+        <section id="results" hidden>
           <div class="row-head">
             <h2>Findings <span id="finding-count" class="count"></span></h2>
             <div id="filters" class="filters"></div>
@@ -82,21 +73,31 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>Kind</th><th>Value</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr>
+                <tr>
+                  <th>Kind</th>
+                  <th>Value</th>
+                  <th>Source</th>
+                  <th>Confidence</th>
+                  <th>Evidence</th>
+                </tr>
               </thead>
               <tbody id="findings"></tbody>
             </table>
           </div>
-        </div>
-        <div class="side-col">
-          <h2>History</h2>
-          <ol id="runs" class="runs"></ol>
-          <h2>Links</h2>
-          <ul id="links" class="runs"></ul>
-        </div>
-      </section>
-      <p id="notice" class="notice" role="status"></p>
-    </main>
+          <div class="split">
+            <div>
+              <h2>History</h2>
+              <ol id="runs" class="runs"></ol>
+            </div>
+            <div>
+              <h2>Links</h2>
+              <ul id="links" class="runs"></ul>
+            </div>
+          </div>
+        </section>
+        <p id="notice" class="notice" role="status"></p>
+      </main>
+    </div>
   </div>
   <script src="/static/app.js"></script>
 </body>

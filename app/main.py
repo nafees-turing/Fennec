@@ -169,6 +169,12 @@ def create_app(
         classified = detect_mod.classify(value)
         if not classified["matches"]:
             return fail("unrecognized", "Could not tell if that is an email, phone, domain, IP, or handle.", 400)
+        wanted = body.get("modules")
+        if isinstance(wanted, list) and wanted:
+            allowed = {str(item) for item in wanted}
+            classified["matches"] = [item for item in classified["matches"] if item["module"] in allowed]
+            if not classified["matches"]:
+                return fail("no_tools", "No selected tools apply to that value.", 400)
         runs = []
         for item in classified["matches"]:
             run, error = await run_module(app, case_id, item["module"], item["value"])

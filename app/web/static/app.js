@@ -1,9 +1,11 @@
 const state = {
   caseId: Number(localStorage.getItem("fennec.caseId")) || null,
-  toolId: localStorage.getItem("fennec.toolId") || "email",
   modules: [],
   findings: [],
   filter: "all",
+  matches: [],
+  selected: new Set(),
+  collapsed: localStorage.getItem("fennec.rail") === "1",
 };
 
 const notice = document.querySelector("#notice");
@@ -30,13 +32,14 @@ function setNotice(text) {
   notice.textContent = text || "";
 }
 
-function currentTool() {
-  return state.modules.find((item) => item.id === state.toolId) || state.modules[0];
-}
-
 function persist() {
   if (state.caseId) localStorage.setItem("fennec.caseId", String(state.caseId));
-  if (state.toolId) localStorage.setItem("fennec.toolId", state.toolId);
+  localStorage.setItem("fennec.rail", state.collapsed ? "1" : "0");
+}
+
+function applyRail() {
+  document.querySelector(".app").classList.toggle("collapsed", state.collapsed);
+  document.querySelector("#rail-toggle").title = state.collapsed ? "Expand sidebar" : "Collapse sidebar";
 }
 
 async function loadCases(selectId) {
@@ -56,6 +59,7 @@ async function loadCases(selectId) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = item.name;
+    button.title = item.name;
     button.className = item.id === open ? "active" : "";
     button.addEventListener("click", () => openCase(item.id));
     caseList.append(button);
@@ -68,8 +72,6 @@ function showWorkspace(open) {
   document.querySelector("#welcome").hidden = open;
   document.querySelector("#results").hidden = !open;
   document.querySelector("#export-links").hidden = !open;
-  document.querySelector("#smart").hidden = !open;
-  document.querySelector("#inspector").hidden = !open;
 }
 
 async function openCase(id) {
@@ -80,21 +82,21 @@ async function openCase(id) {
   document.querySelector("#export-json").href = `/api/cases/${id}/export`;
   document.querySelector("#export-html").href = `/api/cases/${id}/export.html`;
   document.querySelector("#export-pdf").href = `/api/cases/${id}/export.pdf`;
-  document.querySelector("#case-kicker").textContent = `Case ${caseFile.id} · keep adding lookups`;
+  document.querySelector("#case-kicker").textContent = `Case ${caseFile.id}`;
   document.querySelector("#case-title").textContent = caseFile.name;
-  document.querySelector("#case-notes").textContent = caseFile.notes || "Selected. Choose a tool in the sidebar.";
+  document.querySelector("#case-notes").textContent = caseFile.notes || "";
+  document.querySelector("#case-stats").textContent =
+    `${caseFile.findings.length} findings · ${caseFile.runs.length} lookups · ${ (caseFile.links || []).length } links`;
   state.findings = caseFile.findings;
   renderFindings();
   renderRuns(caseFile.runs);
   renderLinks(caseFile.links || []);
   paintCaseList();
-  renderInspector();
 }
 
 function paintCaseList() {
-  const buttons = [...caseList.querySelectorAll("button")];
   api("/api/cases").then((cases) => {
-    buttons.forEach((button, index) => {
+    [...caseList.querySelectorAll("button")].forEach((button, index) => {
       button.classList.toggle("active", cases[index] && cases[index].id === state.caseId);
     });
   });
@@ -121,11 +123,7 @@ function renderTools() {
       const button = document.createElement("button");
       button.type = "button";
       button.disabled = !module.available;
-      const related = (state.relatedModules || []).includes(module.id);
-      button.className = [
-        module.id === state.toolId ? "active" : "",
-        related ? "related" : "",
-      ].filter(Boolean).join(" ");
+      button.className = state.selected.has(module.id) ? "related" : "";
       const label = document.createElement("span");
       label.textContent = module.title;
       button.append(label);
@@ -136,74 +134,57 @@ function renderTools() {
         button.append(tag);
       }
       button.title = module.available ? module.summary : module.reason;
-      button.addEventListener("click", () => {
-        state.toolId = module.id;
-        persist();
-        renderTools();
-        renderInspector();
-      });
+      button.addEventListener("click", () => pinTool(module));
       toolList.append(button);
     }
   }
 }
 
-function renderInspector() {
-  const module = currentTool();
-  const form = document.querySelector("#tool-form");
-  form.replaceChildren();
-  if (!module) return;
-  document.querySelector("#tool-kicker").textContent = module.network ? "Slow network tool" : "Local tool";
-  document.querySelector("#tool-title").textContent = module.title;
-  document.querySelector("#tool-summary").textContent = module.available ? module.summary : module.reason;
-  if (!module.available || !state.caseId) return;
-
-  const submit = document.createElement("button");
-  submit.type = "submit";
-  submit.textContent = "Add to case";
-  let payload;
-  if (module.input_kind === "file") {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.required = true;
-    input.setAttribute("aria-label", module.input_label);
-    form.append(input, submit);
-    payload = () => {
-      const data = new FormData();
-      data.append("module", module.id);
-      data.append("file", input.files[0]);
-      return { body: data };
-    };
+function pinTool(module) {
+  if (!module.available) return;
+  const exists = state.matches.some((item) => item.module === module.id);
+  if (exists) {
+    if (state.selected.has(module.id)) state.selected.delete(module.id);
+    else state.selected.add(module.id);
   } else {
-    const input = document.createElement("input");
-    input.name = "value";
-    input.required = true;
-    input.placeholder = module.placeholder;
-    input.setAttribute("aria-label", module.input_label);
-    form.append(input, submit);
-    payload = () => ({ body: JSON.stringify({ module: module.id, value: input.value }) });
+    state.matches.push({
+      module: module.id,
+      value: document.querySelector("#smart-input").value.trim() || module.placeholder,
+      label: module.title,
+      kind: module.id,
+    });
+    state.selected.add(module.id);
   }
+  renderChips();
+  renderTools();
+}
 
-  form.onsubmit = async (event) => {
-    event.preventDefault();
-    if (!state.caseId) {
-      setNotice("Select a case first.");
-      return;
-    }
-    submit.disabled = true;
-    document.body.classList.add("busy");
-    setNotice(module.network ? "Lookup running. Network tools stay slow on purpose." : "");
-    try {
-      await api(`/api/cases/${state.caseId}/runs`, { method: "POST", ...payload() });
-      form.reset();
-      setNotice("Added to this case.");
-      await openCase(state.caseId);
-    } catch (error) {
-      setNotice(error.message);
-    } finally {
-      submit.disabled = false;
-      document.body.classList.remove("busy");
-    }
-  };
+function renderChips() {
+  const host = document.querySelector("#smart-chips");
+  host.replaceChildren();
+  if (!state.matches.length) {
+    const chip = document.createElement("span");
+    chip.className = "chip miss";
+    chip.textContent = "Detected tools appear here as tags. Click to include or skip.";
+    host.append(chip);
+    renderTools();
+    return;
+  }
+  for (const item of state.matches) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = state.selected.has(item.module) ? "chip on" : "chip";
+    chip.textContent = `${item.label}: ${item.value}`;
+    chip.title = state.selected.has(item.module) ? "Click to skip this tool" : "Click to include this tool";
+    chip.addEventListener("click", () => {
+      if (state.selected.has(item.module)) state.selected.delete(item.module);
+      else state.selected.add(item.module);
+      renderChips();
+      renderTools();
+    });
+    host.append(chip);
+  }
+  renderTools();
 }
 
 function renderFindings() {
@@ -226,7 +207,7 @@ function renderFindings() {
   }
   if (!rows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = '<td class="empty" colspan="5">Nothing on this case yet. Use a tool in the sidebar.</td>';
+    tr.innerHTML = '<td class="empty" colspan="5">Nothing on this case yet. Use the search bar.</td>';
     findingsBody.append(tr);
     return;
   }
@@ -256,7 +237,7 @@ function renderRuns(rows) {
     title.textContent = `${run.module_id} · ${run.input_value}`;
     const meta = document.createElement("span");
     meta.className = run.status;
-    meta.textContent = run.error ? `${run.status}: ${run.error}` : run.status;
+    meta.textContent = run.error ? `${run.status}: ${run.error}` : `${run.status} · ${run.created_at || ""}`;
     li.append(title, document.createElement("br"), meta);
     runsList.append(li);
   }
@@ -279,38 +260,22 @@ function renderLinks(rows) {
   }
 }
 
-function renderChips(matches) {
-  const host = document.querySelector("#smart-chips");
-  host.replaceChildren();
-  state.relatedModules = (matches || []).map((item) => item.module);
-  renderTools();
-  if (!matches || !matches.length) {
-    const chip = document.createElement("span");
-    chip.className = "chip miss";
-    chip.textContent = "Type an email, +phone, domain, IP, or handle";
-    host.append(chip);
-    return;
-  }
-  for (const item of matches) {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.textContent = `${item.label}: ${item.value}`;
-    host.append(chip);
-  }
-}
-
 let detectTimer = 0;
 document.querySelector("#smart-input").addEventListener("input", () => {
   clearTimeout(detectTimer);
   detectTimer = setTimeout(async () => {
     const value = document.querySelector("#smart-input").value.trim();
     if (!value) {
-      renderChips([]);
+      state.matches = [];
+      state.selected = new Set();
+      renderChips();
       return;
     }
     try {
       const result = await api(`/api/detect?q=${encodeURIComponent(value)}`);
-      renderChips(result.matches);
+      state.matches = result.matches || [];
+      state.selected = new Set(state.matches.map((item) => item.module));
+      renderChips();
     } catch (error) {
       setNotice(error.message);
     }
@@ -325,22 +290,17 @@ document.querySelector("#smart-form").addEventListener("submit", async (event) =
   }
   const value = document.querySelector("#smart-input").value.trim();
   const button = event.currentTarget.querySelector("button");
+  const modules = [...state.selected];
   button.disabled = true;
   document.body.classList.add("busy");
-  setNotice("Running only the matching tools.");
+  setNotice("Running selected tags only.");
   try {
     const result = await api(`/api/cases/${state.caseId}/lookup`, {
       method: "POST",
-      body: JSON.stringify({ value }),
+      body: JSON.stringify({ value, modules }),
     });
-    renderChips(result.matches);
     const names = result.matches.map((item) => item.label).join(", ");
-    const skipped = result.runs.filter((item) => item.status === "skipped").length;
-    setNotice(
-      skipped
-        ? `Detected ${result.detected}. Ran ${names}. ${skipped} close tool(s) skipped (cooldown).`
-        : `Detected ${result.detected}. Ran ${names}.`
-    );
+    setNotice(`Detected ${result.detected}. Ran ${names || "selected tools"}.`);
     document.querySelector("#smart-input").value = "";
     await openCase(state.caseId);
   } catch (error) {
@@ -360,19 +320,24 @@ document.querySelector("#new-case").addEventListener("submit", async (event) => 
       body: JSON.stringify({ name: form.name.value, notes: "" }),
     });
     form.reset();
-    setNotice("Case open. Add lookups with the tools on the left.");
+    setNotice("Case open.");
     await loadCases(created.id);
   } catch (error) {
     setNotice(error.message);
   }
 });
 
+document.querySelector("#rail-toggle").addEventListener("click", () => {
+  state.collapsed = !state.collapsed;
+  persist();
+  applyRail();
+});
+
 async function boot() {
+  applyRail();
   state.modules = await api("/api/modules");
-  if (!state.modules.some((item) => item.id === state.toolId)) {
-    state.toolId = (state.modules.find((item) => item.available) || state.modules[0] || {}).id;
-  }
   renderTools();
+  renderChips();
   await loadCases(state.caseId);
 }
 

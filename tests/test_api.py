@@ -423,6 +423,8 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert run.status_code == 201
     assert run.json()["data"]["detected"] == "phone"
     assert run.json()["data"]["runs"][0]["status"] == "ok"
+    skipped = api.post("/api/cases/1/lookup", json={"value": "+41446681800", "modules": ["email"]})
+    assert skipped.status_code == 400
 
 
 def test_home_shell(tmp_path):
@@ -431,9 +433,8 @@ def test_home_shell(tmp_path):
     assert "Fennec" in response.text
     assert "/static/favicon.svg" in response.text
     assert 'id="tool-list"' in response.text
-    assert "Grouped by kind" in response.text
     assert 'id="smart-input"' in response.text
-    assert 'id="inspector"' in response.text
+    assert 'id="rail-toggle"' in response.text
     assert "/static/app.js" in response.text
 
 
