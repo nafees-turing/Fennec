@@ -29,7 +29,7 @@ Lawful use only: your own accounts, authorized work, journalism, and research. R
 One local web app:
 
 1. Create a **case**.
-2. Run a **module** (username, email, domain, or file metadata).
+2. Run a **module** (username, email, domain, phone, or file metadata).
 3. See **normalized findings** plus the raw tool output.
 4. Export a **dossier** (JSON, then HTML).
 5. Later, link findings into a simple graph.
@@ -72,7 +72,7 @@ Fennec/
 
 A **finding** is the shared record every module writes:
 
-- `kind`: username, email, domain, url, ip, file
+- `kind`: username, email, domain, phone, url, ip, file
 - `value`
 - `source`: which tool
 - `confidence`: low / medium / high
@@ -130,7 +130,28 @@ Empty app that runs locally.
 
 **Test:** fixture in, findings out, no live DNS.
 
-### M5 — Metadata
+### M5 — Phone
+
+Library: [`phonenumbers`](https://github.com/daviddrysdale/python-phonenumbers), the Python port of Google's [libphonenumber](https://github.com/google/libphonenumber). Apache-2.0. Current PyPI line is 9.x. `pip install phonenumbers`. No API key and no network call. Metadata ships inside the package.
+
+Input is a number in international form (`+…`). The module records only what the numbering plan publishes:
+
+- valid and possible
+- international and national format
+- country calling code
+- region description (`geocoder.description_for_number`)
+- time zones for that numbering range
+- original carrier for the assigned prefix (`carrier.name_for_number`), when the metadata has one
+
+Limits to show in the UI, because the library's own docs say this:
+
+- Carrier is the original prefix owner, not the carrier after number portability.
+- Region is the area-code or country label from the numbering plan. It is not the person's location.
+- This does not identify the subscriber.
+
+**Test:** parse a fixed example such as `+41446681800` with the real library (offline) and store region, country code, and formatted value as findings. A second case uses an impossible string and stores a failed run, not a crash.
+
+### M6 — Metadata
 
 - Upload a file into the case.
 - Run ExifTool when installed.
@@ -138,7 +159,7 @@ Empty app that runs locally.
 
 **Test:** fixture metadata becomes findings (software, timestamp). GPS only if the fixture contains it.
 
-### M6 — Dossier export
+### M7 — Dossier export
 
 - `GET` a case as JSON.
 - HTML report rendered from the same findings.
@@ -146,15 +167,15 @@ Empty app that runs locally.
 
 **Test:** case with mixed findings exports stable JSON keys and HTML that includes each value.
 
-### M7 — Correlation
+### M8 — Correlation
 
-- Link findings that share a username, email, or domain.
+- Link findings that share a username, email, domain, or phone number.
 - Simple list of links first. Graph view after the list is tested.
 - No new collectors in this milestone.
 
 **Test:** two findings that share a domain produce one link. Unrelated findings produce none.
 
-### M8 — Run history and safety rails
+### M9 — Run history and safety rails
 
 - Each module run stores status, start, finish, and tool version or “fake”.
 - Timeouts and non-zero exits become a failed run, not a crash.
@@ -162,7 +183,7 @@ Empty app that runs locally.
 
 **Test:** a hanging fake adapter hits the timeout and the case stays readable.
 
-### Later, only after M0–M8
+### Later, only after M0–M9
 
 - Subdomain helper (subfinder or theHarvester) behind the same adapter interface.
 - Optional offline GeoIP using a locally downloaded MaxMind or DB-IP database.
@@ -193,7 +214,8 @@ Breach APIs that need a paid key (including Have I Been Pwned) stay optional plu
 | Holehe | M3 | Email → sites |
 | dnspython | M4 | DNS |
 | python-whois | M4 | WHOIS |
-| ExifTool | M5 | File metadata |
+| phonenumbers | M5 | Phone number metadata from the public numbering plan |
+| ExifTool | M6 | File metadata |
 
 Sherlock overlaps Maigret. Use Maigret only unless a later note says otherwise.
 
