@@ -6,9 +6,9 @@ The milestone plan is in [Fennec_Plan.md](Fennec_Plan.md).
 
 ## Status
 
-Live modules: phone, email, username, domain, file metadata, correlation links, JSON/HTML dossier export.
+Live modules: phone, email, username, domain, company (Wikidata), geoip (local mmdb), file metadata, correlation, JSON/HTML/PDF export, Docker image.
 
-Network modules stay small and slow: about 20 Holehe sites, eight username profile URLs, one domain RDAP/WHOIS plus DNS. One network scan at a time, then a cooldown. Phone, metadata, and correlation never leave the machine. Set `FENNEC_HOLEHE_SITES=all` only if you want the full Holehe list. Full Maigret is still out.
+Network modules stay small and slow: about 20 Holehe sites, eight username profile URLs, one domain RDAP/WHOIS plus DNS, at most two Wikimedia requests for a company. One network scan at a time, then a cooldown. Phone, metadata, geoip, and correlation never leave the machine. Set `FENNEC_HOLEHE_SITES=all` only if you want the full Holehe list. Full Maigret is still out.
 
 ## Setup
 
@@ -23,6 +23,16 @@ Use `python -m uvicorn` from that venv. A system `uvicorn` on PATH will miss Hol
 
 Open http://127.0.0.1:8000. The database file is `data/fennec.db`.
 
+GeoIP: put `GeoLite2-Country.mmdb` (or City) in `data/` or set `FENNEC_GEOLITE`. Fennec does not download that file.
+
+Docker:
+
+```bash
+docker compose up --build
+```
+
+The compose file mounts `./data` so SQLite and the GeoIP database persist.
+
 ## API
 
 Responses are either `{"data": ...}` or `{"error": {"code": "...", "message": "..."}}`.
@@ -33,8 +43,11 @@ Responses are either `{"data": ...}` or `{"error": {"code": "...", "message": ".
 | GET | `/api/modules` | Registered modules and whether each one can run |
 | GET | `/api/cases` | List cases |
 | POST | `/api/cases` | `{"name": "...", "notes": ""}` |
-| GET | `/api/cases/{id}` | Case, runs, and findings |
+| GET | `/api/cases/{id}` | Case, runs, findings, and links |
 | POST | `/api/cases/{id}/runs` | `{"module": "phone", "value": "+14155552671"}` |
+| GET | `/api/cases/{id}/export` | JSON dossier |
+| GET | `/api/cases/{id}/export.html` | HTML dossier |
+| GET | `/api/cases/{id}/export.pdf` | PDF dossier |
 
 ## Test
 

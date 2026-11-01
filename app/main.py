@@ -4,7 +4,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+
+from app import pdf as pdf_export
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -101,6 +103,19 @@ def create_app(
                 "case": case,
                 "exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             },
+        )
+
+    @app.get("/api/cases/{case_id}/export.pdf")
+    def export_pdf(case_id: int):
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        payload = pdf_export.render(case)
+        filename = f"fennec-case-{case_id}.pdf"
+        return Response(
+            content=payload,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     @app.post("/api/cases/{case_id}/runs")

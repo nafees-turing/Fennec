@@ -1,15 +1,25 @@
 from app.modules.base import ModuleResult, ModuleSpec
-from app.modules import domain, email, metadata, phone, username
+from app.modules import company, domain, email, geoip, metadata, phone, username
 
 _SPECS = {
     item.id: item
-    for item in [email.SPEC, phone.SPEC, domain.SPEC, username.SPEC, metadata.SPEC]
+    for item in [
+        email.SPEC,
+        phone.SPEC,
+        domain.SPEC,
+        username.SPEC,
+        company.SPEC,
+        geoip.SPEC,
+        metadata.SPEC,
+    ]
 }
 _RUNNERS = {
     "email": email.run,
     "phone": phone.run,
     "domain": domain.run,
     "username": username.run,
+    "company": company.run,
+    "geoip": geoip.run,
     "metadata": metadata.run,
 }
 

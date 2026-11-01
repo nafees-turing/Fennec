@@ -54,6 +54,7 @@ async function openCase(id) {
   document.querySelector("#export-links").hidden = false;
   document.querySelector("#export-json").href = `/api/cases/${id}/export`;
   document.querySelector("#export-html").href = `/api/cases/${id}/export.html`;
+  document.querySelector("#export-pdf").href = `/api/cases/${id}/export.pdf`;
   document.querySelector("#case-kicker").textContent = `Case ${caseFile.id}`;
   document.querySelector("#case-title").textContent = caseFile.name;
   document.querySelector("#case-notes").textContent = caseFile.notes || "";

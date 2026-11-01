@@ -179,13 +179,14 @@ Limits to show in the UI, because the library's own docs say this:
 
 **Test:** a hanging adapter hits the timeout and the case stays readable.
 
-### Later, only after M0–M9
+### Later extras (in tree)
 
-- Subdomain helper (subfinder or theHarvester) behind the same adapter interface.
-- Optional offline GeoIP using a locally downloaded MaxMind or DB-IP database.
-- PDF export.
-- Docker image.
-- Dark case-file theme.
+- PDF export at `/api/cases/{id}/export.pdf`.
+- Docker image and compose file; `./data` is a volume.
+- GeoIP from a local mmdb (`data/GeoLite2-Country.mmdb`). No download from the app.
+- Company names through Wikidata: one search, one entity fetch.
+
+Still later: subdomain helper, dark case-file theme.
 
 Breach APIs that need a paid key (including Have I Been Pwned) stay optional plugins and are not part of the default milestones.
 

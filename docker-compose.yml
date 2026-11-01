@@ -1,0 +1,11 @@
+services:
+  fennec:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      FENNEC_NET_CONCURRENCY: "2"
+      FENNEC_NET_DELAY: "0.5"
+      FENNEC_GEOLITE: /app/data/GeoLite2-Country.mmdb

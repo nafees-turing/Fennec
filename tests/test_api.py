@@ -20,6 +20,8 @@ def test_health_and_modules(tmp_path):
     assert by_id["username"]["available"] is True
     assert by_id["metadata"]["available"] is True
     assert by_id["metadata"]["input_kind"] == "file"
+    assert by_id["company"]["available"] is True
+    assert by_id["geoip"]["network"] is False
     assert "RDAP" in by_id["domain"]["summary"]
 
 
@@ -297,6 +299,56 @@ def test_run_timeout_stays_readable(tmp_path, monkeypatch):
     assert run.json()["data"]["status"] == "failed"
     assert "Timed out" in run.json()["data"]["error"]
     assert api.get("/api/cases/1").status_code == 200
+
+
+def test_geoip_and_company_and_pdf(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "app.modules.geoip.lookup_ip",
+        lambda _ip: {"country": "Australia", "iso": "AU", "city": "", "source": "test.mmdb"},
+    )
+    monkeypatch.setattr(
+        "app.modules.company.search_wikidata",
+        lambda _name: {
+            "hits": [
+                {"id": "Q95", "label": "Google", "description": "American technology company"},
+                {"id": "Q9366", "label": "Alphabet", "description": "holding company"},
+            ],
+            "entity": {
+                "labels": {"en": {"value": "Google"}},
+                "descriptions": {"en": {"value": "American technology company"}},
+                "claims": {
+                    "P856": [{"mainsnak": {"datavalue": {"value": "https://www.google.com/"}}}]
+                },
+            },
+        },
+    )
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Org"})
+    geo = api.post("/api/cases/1/runs", json={"module": "geoip", "value": "1.1.1.1"})
+    assert geo.status_code == 201
+    assert ("country", "Australia") in {(i["kind"], i["value"]) for i in geo.json()["data"]["findings"]}
+    missing = api.post("/api/cases/1/runs", json={"module": "geoip", "value": "not-an-ip"})
+    assert missing.json()["data"]["status"] == "failed"
+    company = api.post("/api/cases/1/runs", json={"module": "company", "value": "Google"})
+    assert company.status_code == 201
+    kinds = {(i["kind"], i["value"]) for i in company.json()["data"]["findings"]}
+    assert ("company", "Google") in kinds
+    assert ("wikidata", "Q95") in kinds
+    assert ("url", "https://www.google.com/") in kinds
+    pdf = api.get("/api/cases/1/export.pdf")
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"].startswith("application/pdf")
+    assert pdf.content[:4] == b"%PDF"
+
+
+def test_geoip_without_database_fails(tmp_path, monkeypatch):
+    monkeypatch.delenv("FENNEC_GEOLITE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    from app.modules.geoip import run
+
+    result = run("8.8.8.8")
+    assert result.status == "failed"
+    assert "GeoIP database" in (result.error or "")
 
 
 def test_home_shell(tmp_path):
