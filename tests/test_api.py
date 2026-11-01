@@ -341,14 +341,30 @@ def test_geoip_and_company_and_pdf(tmp_path, monkeypatch):
     assert pdf.content[:4] == b"%PDF"
 
 
-def test_geoip_without_database_fails(tmp_path, monkeypatch):
+def test_private_ip_scope_needs_no_database(tmp_path, monkeypatch):
     monkeypatch.delenv("FENNEC_GEOLITE", raising=False)
+    monkeypatch.delenv("FENNEC_ASN", raising=False)
     monkeypatch.chdir(tmp_path)
-    from app.modules.geoip import run
+    from app.modules import geoip
 
-    result = run("8.8.8.8")
-    assert result.status == "failed"
-    assert "GeoIP database" in (result.error or "")
+    monkeypatch.setattr(geoip, "asn_path", lambda: tmp_path / "missing-asn.mmdb")
+    monkeypatch.setattr(geoip, "database_path", lambda: tmp_path / "missing-geo.mmdb")
+    result = geoip.run("10.1.2.3")
+    assert result.status == "ok"
+    kinds = {(item.kind, item.value) for item in result.findings}
+    assert ("ip", "10.1.2.3") in kinds
+    assert ("scope", "private") in kinds
+
+
+def test_asn_from_netwatch_db_if_present():
+    from app.modules.geoip import asn_path, run
+
+    if not asn_path().is_file():
+        return
+    result = run("1.1.1.1")
+    assert result.status == "ok"
+    asns = {item.value for item in result.findings if item.kind == "asn"}
+    assert "AS13335" in asns
 
 
 def test_home_shell(tmp_path):

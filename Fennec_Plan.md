@@ -183,7 +183,7 @@ Limits to show in the UI, because the library's own docs say this:
 
 - PDF export at `/api/cases/{id}/export.pdf`.
 - Docker image and compose file; `./data` is a volume.
-- GeoIP from a local mmdb (`data/GeoLite2-Country.mmdb`). No download from the app.
+- IP network facts from NetWatch’s local style: scope via `ipaddress`, ASN/org from DB-IP ASN Lite if that mmdb is on disk, country only if a GeoIP mmdb is present. No remote IP API.
 - Company names through Wikidata: one search, one entity fetch.
 
 Still later: subdomain helper, dark case-file theme.

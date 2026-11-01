@@ -23,7 +23,7 @@ Use `python -m uvicorn` from that venv. A system `uvicorn` on PATH will miss Hol
 
 Open http://127.0.0.1:8000. The database file is `data/fennec.db`.
 
-GeoIP: put `GeoLite2-Country.mmdb` (or City) in `data/` or set `FENNEC_GEOLITE`. Fennec does not download that file.
+IP network: every address gets a local scope (private, global, loopback). ASN and org come from DB-IP ASN Lite if the file is present (`data/dbip-asn-lite.mmdb`, `FENNEC_ASN`, or a sibling `netwatch/data/intel/dbip-asn-lite.mmdb`). Country/city still need a GeoLite or DB-IP city/country mmdb (`FENNEC_GEOLITE`). No ip-api or other remote IP lookup.
 
 Docker:
 
