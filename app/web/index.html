@@ -42,7 +42,7 @@
         </div>
       </header>
       <section id="welcome" class="welcome">
-        <p>Create a case, then run Email, Phone, Domain, or File metadata. Email and domain are throttled so this IP is less likely to get blocked. Username stays off until we can run a small set.</p>
+        <p>Create a case, then run Email, Username, Phone, Domain, or File metadata. Network modules use a small slow set and a cooldown. The case also lists links between shared emails, domains, phones, and usernames.</p>
       </section>
       <section id="modules" class="modules" hidden></section>
       <section class="split" id="results" hidden>
@@ -63,6 +63,8 @@
         <div>
           <h2>Runs</h2>
           <ol id="runs" class="runs"></ol>
+          <h2>Links</h2>
+          <ul id="links" class="runs"></ul>
         </div>
       </section>
       <p id="notice" class="notice" role="status"></p>

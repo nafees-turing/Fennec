@@ -8,7 +8,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app import db
+from app import correlate, db
+from app.modules.base import ModuleResult
 from app.modules.registry import execute, get_module, list_modules
 from app.netguard import NetworkGuard
 
@@ -25,10 +26,15 @@ def fail(code: str, message: str, status_code: int) -> JSONResponse:
     return JSONResponse({"error": {"code": code, "message": message}}, status_code=status_code)
 
 
-def create_app(db_path: Path | None = None, network_cooldown: float = 45.0) -> FastAPI:
+def create_app(
+    db_path: Path | None = None,
+    network_cooldown: float = 45.0,
+    run_timeout: float = 90.0,
+) -> FastAPI:
     app = FastAPI(title="Fennec", version="0.1.0")
     app.state.db_path = db_path or Path("data") / "fennec.db"
     app.state.network = NetworkGuard(cooldown=network_cooldown)
+    app.state.run_timeout = run_timeout
     db.init_db(app.state.db_path)
     app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
     templates = Jinja2Templates(directory=str(WEB))
@@ -65,6 +71,7 @@ def create_app(db_path: Path | None = None, network_cooldown: float = 45.0) -> F
             return None
         case["runs"] = db.list_runs(app.state.db_path, case_id)
         case["findings"] = db.list_findings(app.state.db_path, case_id)
+        case["links"] = correlate.links(case["findings"])
         return case
 
     @app.get("/api/cases/{case_id}")
@@ -133,7 +140,12 @@ def create_app(db_path: Path | None = None, network_cooldown: float = 45.0) -> F
             if blocked:
                 return fail("network_limited", blocked, 429)
         try:
-            result = await asyncio.to_thread(execute, module_id, value)
+            result = await asyncio.wait_for(
+                asyncio.to_thread(execute, module_id, value),
+                timeout=app.state.run_timeout,
+            )
+        except TimeoutError:
+            result = ModuleResult(status="failed", error="Timed out before the module finished.")
         finally:
             if spec.network:
                 app.state.network.end(key)

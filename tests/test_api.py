@@ -17,7 +17,7 @@ def test_health_and_modules(tmp_path):
     assert by_id["phone"]["available"] is True
     assert by_id["email"]["available"] is True
     assert by_id["domain"]["available"] is True
-    assert by_id["username"]["available"] is False
+    assert by_id["username"]["available"] is True
     assert by_id["metadata"]["available"] is True
     assert by_id["metadata"]["input_kind"] == "file"
     assert "RDAP" in by_id["domain"]["summary"]
@@ -28,10 +28,6 @@ def test_case_and_phone_run(tmp_path):
     created = api.post("/api/cases", json={"name": "Desk check", "notes": "local"})
     assert created.status_code == 201
     case_id = created.json()["data"]["id"]
-
-    blocked = api.post("/api/cases/1/runs", json={"module": "username", "value": "ada"})
-    assert blocked.status_code == 409
-    assert blocked.json()["error"]["code"] == "module_unavailable"
 
     run = api.post("/api/cases/1/runs", json={"module": "phone", "value": "+41446681800"})
     assert run.status_code == 201
@@ -199,6 +195,108 @@ def test_repeat_domain_is_limited(tmp_path, monkeypatch):
     assert first.status_code == 201
     assert second.status_code == 429
     assert second.json()["error"]["code"] == "network_limited"
+
+
+def fake_username(_user):
+    return [
+        {
+            "name": "github",
+            "url": "https://github.com/octocat",
+            "status": 200,
+            "exists": True,
+            "error": None,
+        },
+        {
+            "name": "gitlab",
+            "url": "https://gitlab.com/octocat",
+            "status": 404,
+            "exists": False,
+            "error": None,
+        },
+        {
+            "name": "reddit",
+            "url": "https://www.reddit.com/user/octocat",
+            "status": 403,
+            "exists": False,
+            "error": None,
+        },
+    ]
+
+
+def test_username_run_uses_injected_scanner(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.modules.username.scan_username", fake_username)
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Handle"})
+    run = api.post("/api/cases/1/runs", json={"module": "username", "value": "@octocat"})
+    assert run.status_code == 201
+    body = run.json()["data"]
+    assert body["status"] == "ok"
+    kinds = {(item["kind"], item["value"]) for item in body["findings"]}
+    assert ("username", "octocat") in kinds
+    assert ("account", "https://github.com/octocat") in kinds
+    assert ("rate_limit", "reddit") in kinds
+    assert ("account", "https://gitlab.com/octocat") not in kinds
+
+
+def test_correlation_links_shared_domain(tmp_path):
+    from app import db
+
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Overlap"})
+    path = tmp_path / "fennec.db"
+    db.add_run(
+        path,
+        1,
+        "domain",
+        "ok",
+        "example.com",
+        None,
+        [
+            {
+                "kind": "domain",
+                "value": "example.com",
+                "source": "test",
+                "confidence": "high",
+                "evidence": "",
+            }
+        ],
+    )
+    db.add_run(
+        path,
+        1,
+        "email",
+        "ok",
+        "ada@example.com",
+        None,
+        [
+            {
+                "kind": "email",
+                "value": "ada@example.com",
+                "source": "test",
+                "confidence": "high",
+                "evidence": "",
+            }
+        ],
+    )
+    links = api.get("/api/cases/1").json()["data"]["links"]
+    assert any(item["kind"] == "domain" and item["value"] == "example.com" and item["count"] == 2 for item in links)
+
+
+def test_run_timeout_stays_readable(tmp_path, monkeypatch):
+    import time
+
+    def hang(_module, _value):
+        time.sleep(2)
+        raise AssertionError("should have been cancelled")
+
+    monkeypatch.setattr("app.main.execute", hang)
+    api = TestClient(create_app(tmp_path / "fennec.db", network_cooldown=0, run_timeout=0.1))
+    api.post("/api/cases", json={"name": "Slow"})
+    run = api.post("/api/cases/1/runs", json={"module": "phone", "value": "+41446681800"})
+    assert run.status_code == 201
+    assert run.json()["data"]["status"] == "failed"
+    assert "Timed out" in run.json()["data"]["error"]
+    assert api.get("/api/cases/1").status_code == 200
 
 
 def test_home_shell(tmp_path):

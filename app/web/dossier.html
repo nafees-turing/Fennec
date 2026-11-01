@@ -31,6 +31,12 @@
     {% endfor %}
     </tbody>
   </table>
+  <h2>Links</h2>
+  <ul>
+    {% for row in case.links %}
+      <li>{{ row.kind }} · {{ row.value }} · {{ row.count }} findings</li>
+    {% endfor %}
+  </ul>
   <h2>Runs</h2>
   <ul>
     {% for run in case.runs %}

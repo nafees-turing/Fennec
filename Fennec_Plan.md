@@ -106,12 +106,11 @@ Empty app that runs locally.
 
 ### M2 — Username
 
-- Adapter around Maigret for one username.
-- If Maigret is missing, the UI says so and the test uses a fake adapter.
-- Save each hit as a finding on the case.
-- Show found profile URLs on the case page.
+- Small public-profile URL set (eight sites), one request after another.
+- Full Maigret stays off so this IP is not sprayed.
+- Tests inject a fake probe.
 
-**Test:** fake adapter returns two sites; both land in the case. Optional marked test runs Maigret only when the binary or package is present.
+**Test:** fake adapter returns one hit and one unclear status. A bad handle fails the run.
 
 ### M3 — Email
 
@@ -169,18 +168,16 @@ Limits to show in the UI, because the library's own docs say this:
 ### M8 — Correlation
 
 - Link findings that share a username, email, domain, or phone number.
-- Simple list of links first. Graph view after the list is tested.
-- No new collectors in this milestone.
+- Shown on the case page and in the HTML dossier.
 
-**Test:** two findings that share a domain produce one link. Unrelated findings produce none.
+**Test:** two findings that share a domain produce one link.
 
 ### M9 — Run history and safety rails
 
-- Each module run stores status, start, finish, and tool version or “fake”.
-- Timeouts and non-zero exits become a failed run, not a crash.
-- Basic rate limit: one active run per case.
+- One network scan at a time, cooldown on the same query, module timeout.
+- Timeouts become a failed run. The case stays readable.
 
-**Test:** a hanging fake adapter hits the timeout and the case stays readable.
+**Test:** a hanging adapter hits the timeout and the case stays readable.
 
 ### Later, only after M0–M9
 

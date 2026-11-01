@@ -60,6 +60,7 @@ async function openCase(id) {
   state.findings = caseFile.findings;
   renderFindings();
   renderRuns(caseFile.runs);
+  renderLinks(caseFile.links || []);
   renderModules();
   highlightCase();
 }
@@ -126,6 +127,23 @@ function renderRuns(rows) {
     meta.textContent = run.error ? `${run.status}: ${run.error}` : run.status;
     li.append(title, document.createElement("br"), meta);
     runsList.append(li);
+  }
+}
+
+function renderLinks(rows) {
+  const host = document.querySelector("#links");
+  host.replaceChildren();
+  if (!rows.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No shared values yet.";
+    host.append(li);
+    return;
+  }
+  for (const row of rows) {
+    const li = document.createElement("li");
+    li.textContent = `${row.kind} · ${row.value} · ${row.count} findings`;
+    host.append(li);
   }
 }
 

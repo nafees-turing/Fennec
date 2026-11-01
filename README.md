@@ -6,9 +6,9 @@ The milestone plan is in [Fennec_Plan.md](Fennec_Plan.md).
 
 ## Status
 
-Live modules: phone, email, domain, file metadata, JSON/HTML dossier export. Username (Maigret) stays off because a full sweep is too many outbound requests.
+Live modules: phone, email, username, domain, file metadata, correlation links, JSON/HTML dossier export.
 
-Email uses a default set of about 20 Holehe sites, two at a time, with a delay, then a cooldown on the same query. Domain is one RDAP/WHOIS lookup plus DNS. Phone and metadata never leave the machine. Set `FENNEC_HOLEHE_SITES=all` only if you want the full Holehe list.
+Network modules stay small and slow: about 20 Holehe sites, eight username profile URLs, one domain RDAP/WHOIS plus DNS. One network scan at a time, then a cooldown. Phone, metadata, and correlation never leave the machine. Set `FENNEC_HOLEHE_SITES=all` only if you want the full Holehe list. Full Maigret is still out.
 
 ## Setup
 

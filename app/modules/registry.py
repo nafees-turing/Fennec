@@ -1,25 +1,15 @@
 from app.modules.base import ModuleResult, ModuleSpec
-from app.modules import domain, email, metadata, phone
+from app.modules import domain, email, metadata, phone, username
 
-PLANNED = [
-    ModuleSpec(
-        id="username",
-        title="Username",
-        milestone="M2",
-        summary="Maigret hits a large number of sites. It stays off until we can run a small, slow set.",
-        input_label="Username",
-        placeholder="someone",
-        available=False,
-        reason="Skipped for now: a full username sweep is too many outbound requests.",
-        network=True,
-    ),
-]
-
-_SPECS = {item.id: item for item in [email.SPEC, phone.SPEC, domain.SPEC, metadata.SPEC, *PLANNED]}
+_SPECS = {
+    item.id: item
+    for item in [email.SPEC, phone.SPEC, domain.SPEC, username.SPEC, metadata.SPEC]
+}
 _RUNNERS = {
     "email": email.run,
     "phone": phone.run,
     "domain": domain.run,
+    "username": username.run,
     "metadata": metadata.run,
 }
 
