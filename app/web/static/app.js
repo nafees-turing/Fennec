@@ -8,6 +8,12 @@ const state = {
   openGroups: loadOpenGroups(),
   defaults: new Set(),
   personalDefaults: [],
+  cases: [],
+  caseQuery: "",
+  toolQuery: "",
+  casesOpen: localStorage.getItem("fennec.casesOpen") !== "0",
+  toolsOpen: localStorage.getItem("fennec.toolsOpen") !== "0",
+  profileId: null,
 };
 
 const notice = document.querySelector("#notice");
@@ -56,26 +62,62 @@ function tint(node, id) {
 function persist() {
   if (state.caseId) localStorage.setItem("fennec.caseId", String(state.caseId));
   localStorage.setItem("fennec.groups", JSON.stringify([...state.openGroups]));
+  localStorage.setItem("fennec.casesOpen", state.casesOpen ? "1" : "0");
+  localStorage.setItem("fennec.toolsOpen", state.toolsOpen ? "1" : "0");
+}
+
+function applyFolds() {
+  document.querySelector("#cases-body").hidden = !state.casesOpen;
+  document.querySelector("#tools-body").hidden = !state.toolsOpen;
+  const casesToggle = document.querySelector("#cases-toggle");
+  const toolsToggle = document.querySelector("#tools-toggle");
+  casesToggle.setAttribute("aria-expanded", state.casesOpen ? "true" : "false");
+  toolsToggle.setAttribute("aria-expanded", state.toolsOpen ? "true" : "false");
+  casesToggle.querySelector(".chevron").textContent = state.casesOpen ? "▾" : "▸";
+  toolsToggle.querySelector(".chevron").textContent = state.toolsOpen ? "▾" : "▸";
 }
 
 async function loadCases(selectId, skipOpen) {
   const cases = await api("/api/cases");
-  caseList.replaceChildren();
+  state.cases = cases;
   if (cases.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "None yet.";
-    caseList.append(empty);
     state.caseId = null;
+    renderCases();
     showWorkspace(false);
     return cases;
   }
   const open = selectId || state.caseId || cases[0].id;
-  for (const item of cases) {
+  renderCases();
+  if (open && !skipOpen) await openCase(open, true);
+  return cases;
+}
+
+function renderCases() {
+  caseList.replaceChildren();
+  const query = state.caseQuery.trim().toLowerCase();
+  let rows = state.cases;
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "None yet.";
+    caseList.append(empty);
+    return;
+  }
+  if (query) {
+    rows = rows.filter((item) => item.name.toLowerCase().includes(query));
+  } else {
+    const top = rows.slice(0, 5);
+    if (state.caseId && !top.some((item) => item.id === state.caseId)) {
+      const current = rows.find((item) => item.id === state.caseId);
+      if (current) top.unshift(current);
+    }
+    rows = top;
+  }
+  for (const item of rows) {
     const button = document.createElement("button");
     button.type = "button";
     button.title = item.name;
-    button.className = item.id === open ? "active tinted" : "tinted";
+    button.className = item.id === state.caseId ? "active tinted" : "tinted";
     tint(button, item.id);
     button.append(icon("case"));
     const label = document.createElement("span");
@@ -84,8 +126,18 @@ async function loadCases(selectId, skipOpen) {
     button.addEventListener("click", () => go(`/cases/${item.id}`));
     caseList.append(button);
   }
-  if (open && !skipOpen) await openCase(open, true);
-  return cases;
+  if (!query && state.cases.length > rows.length) {
+    const more = document.createElement("p");
+    more.className = "hint";
+    more.textContent = `${state.cases.length - rows.length} more — search to find them`;
+    caseList.append(more);
+  }
+  if (query && !rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No case matches.";
+    caseList.append(empty);
+  }
 }
 
 function showWorkspace(open) {
@@ -260,10 +312,16 @@ function icon(name, hue) {
 
 function renderTools() {
   toolList.replaceChildren();
+  const query = state.toolQuery.trim().toLowerCase();
   for (const group of GROUPS) {
-    const items = state.modules.filter((item) => item.category === group.id);
+    const items = state.modules.filter((item) => {
+      if (item.category !== group.id) return false;
+      if (!query) return true;
+      const hay = `${item.title} ${item.id} ${item.summary || ""}`.toLowerCase();
+      return hay.includes(query);
+    });
     if (!items.length) continue;
-    const open = state.openGroups.has(group.id);
+    const open = query ? true : state.openGroups.has(group.id);
     const heading = document.createElement("button");
     heading.type = "button";
     heading.className = `tool-group hue-${group.id}`;
@@ -463,6 +521,7 @@ async function showProfilePage(caseId, profileId) {
   document.querySelector("#case-stats").textContent = profile
     ? `${profile.finding_count} combined findings`
     : "";
+  state.profileId = profile ? profile.id : null;
   if (profile) renderProfileDetail(profile);
   else document.querySelector("#profile-full").textContent = "That profile is not on this case.";
 }
@@ -685,6 +744,40 @@ async function loadSettings() {
   state.defaults = new Set(data.default_modules || state.personalDefaults);
 }
 
+document.querySelector("#cases-toggle").addEventListener("click", () => {
+  state.casesOpen = !state.casesOpen;
+  persist();
+  applyFolds();
+});
+
+document.querySelector("#tools-toggle").addEventListener("click", () => {
+  state.toolsOpen = !state.toolsOpen;
+  persist();
+  applyFolds();
+});
+
+document.querySelector("#case-filter").addEventListener("input", (event) => {
+  state.caseQuery = event.currentTarget.value;
+  renderCases();
+});
+
+document.querySelector("#tool-filter").addEventListener("input", (event) => {
+  state.toolQuery = event.currentTarget.value;
+  renderTools();
+});
+
+document.querySelector("#delete-profile").addEventListener("click", async () => {
+  if (!state.caseId || !state.profileId) return;
+  if (!window.confirm("Remove this profile and its findings from the case? Searches stay unless they have no findings left.")) return;
+  try {
+    await api(`/api/cases/${state.caseId}/profiles/${state.profileId}`, { method: "DELETE" });
+    setNotice("Profile removed.");
+    go(`/cases/${state.caseId}`);
+  } catch (error) {
+    setNotice(error.message);
+  }
+});
+
 document.querySelector("#settings-link").addEventListener("click", (event) => {
   event.preventDefault();
   go("/settings");
@@ -732,6 +825,7 @@ window.addEventListener("popstate", () => {
 async function boot() {
   state.modules = await api("/api/modules");
   await loadSettings();
+  applyFolds();
   renderTools();
   renderChips();
   await renderRoute();

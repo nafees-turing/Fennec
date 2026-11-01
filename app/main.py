@@ -134,6 +134,17 @@ def create_app(
             return fail("case_not_found", "No case with that id.", 404)
         return ok(case)
 
+    @app.delete("/api/cases/{case_id}/profiles/{profile_id}")
+    def delete_profile(case_id: int, profile_id: int) -> JSONResponse:
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        profile = next((item for item in case["profiles"] if item["id"] == profile_id), None)
+        if profile is None:
+            return fail("profile_not_found", "No profile with that id.", 404)
+        removed = db.delete_findings(app.state.db_path, case_id, profile.get("finding_ids") or [])
+        return ok({"removed": removed, "profile_id": profile_id})
+
     @app.get("/api/cases/{case_id}/export")
     def export_case(case_id: int) -> JSONResponse:
         case = load_case(case_id)

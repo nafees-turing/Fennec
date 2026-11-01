@@ -577,6 +577,11 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert case["lookups"][0]["runs"][0]["module_id"] == "phone"
     assert case["profiles"]
     assert any("+41446681800" in (item.get("phones") or []) or item["title"] for item in case["profiles"])
+    profile_id = case["profiles"][0]["id"]
+    removed = api.delete(f"/api/cases/1/profiles/{profile_id}")
+    assert removed.status_code == 200
+    after = api.get("/api/cases/1").json()["data"]
+    assert after["profiles"] == [] or all(item["id"] != profile_id for item in after["profiles"])
     skipped = api.post("/api/cases/1/lookup", json={"value": "+41446681800", "modules": ["email"]})
     assert skipped.status_code == 400
 
@@ -632,6 +637,8 @@ def test_home_shell(tmp_path):
     home = api.get("/")
     assert 'id="settings-link"' in home.text
     assert "#i-settings" in home.text
+    assert 'id="case-filter"' in home.text
+    assert 'id="tool-filter"' in home.text
     assert "/static/app.js" in response.text
 
 

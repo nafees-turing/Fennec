@@ -195,9 +195,16 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip { background: transparent; color: var(--muted); }
 .stage { min-width: 0; display: flex; flex-direction: column; }
 .top { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
-.search-panel { margin: 0 0 0.9rem; }
-.smart-form { display: flex; gap: 0.4rem; }
-.smart-form input { flex: 1; }
+.search-panel { margin: 0 auto 0.9rem; max-width: 36rem; }
+.smart-form { display: flex; gap: 0.4rem; justify-content: center; }
+.smart-form input { flex: 1; min-width: 0; }
+.chips { justify-content: center; }
+.rail-search {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  padding: 0.45rem 0.6rem;
+}
+.profile-nav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 .export { margin: 0; white-space: nowrap; }
 .export a { color: var(--accent-hover); margin-left: 0.75rem; text-decoration: none; font-weight: 600; font-size: 0.85rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; min-height: 1.7rem; }
@@ -216,8 +223,12 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip.on { background: #163056; color: #dbeafe; border-color: #1d4ed8; }
 .chip.miss { cursor: default; }
 .workspace { padding: 1.2rem 1.6rem 2.4rem; min-width: 0; height: 100vh; overflow-y: auto; }
-#case-list { max-height: 28vh; overflow-y: auto; }
-#tool-rail { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 1.5rem; }
+#cases-rail { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#cases-body { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+#cases-body[hidden], #tools-body[hidden] { display: none; }
+#case-list { max-height: 22vh; overflow-y: auto; }
+#tool-rail { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#tools-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 0.5rem; }
 h1 {
   margin: 0.1rem 0 0;
   font-size: 1.7rem;

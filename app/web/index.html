@@ -42,19 +42,30 @@
         </div>
       </div>
 
-      <section class="rail-block">
-        <h2 class="hue-case"><svg class="icon hue-case"><use href="#i-case"/></svg> Cases</h2>
-        <form id="new-case" class="new-case">
-          <input name="name" placeholder="New case" required maxlength="120" aria-label="New case name">
-          <button type="submit"><svg class="icon hue-case"><use href="#i-plus"/></svg> Add</button>
-        </form>
-        <nav id="case-list" class="nav-list" aria-label="Cases"></nav>
+      <section class="rail-block" id="cases-rail">
+        <button type="button" id="cases-toggle" class="tool-group hue-case" aria-expanded="true">
+          <span><svg class="icon hue-case"><use href="#i-case"/></svg> Cases</span>
+          <span class="chevron">▾</span>
+        </button>
+        <div id="cases-body">
+          <input id="case-filter" class="rail-search" type="search" placeholder="Find a case" aria-label="Find a case">
+          <form id="new-case" class="new-case">
+            <input name="name" placeholder="New case" required maxlength="120" aria-label="New case name">
+            <button type="submit"><svg class="icon hue-case"><use href="#i-plus"/></svg> Add</button>
+          </form>
+          <nav id="case-list" class="nav-list" aria-label="Cases"></nav>
+        </div>
       </section>
 
       <section class="rail-block" id="tool-rail">
-        <h2 class="hue-search"><svg class="icon hue-search"><use href="#i-search"/></svg> Tools</h2>
-        <p class="hint">Click a tool to pin it as a search tag.</p>
-        <nav id="tool-list" class="nav-list tools" aria-label="Tools"></nav>
+        <button type="button" id="tools-toggle" class="tool-group hue-search" aria-expanded="true">
+          <span><svg class="icon hue-search"><use href="#i-search"/></svg> Tools</span>
+          <span class="chevron">▾</span>
+        </button>
+        <div id="tools-body">
+          <input id="tool-filter" class="rail-search" type="search" placeholder="Find a tool" aria-label="Find a tool">
+          <nav id="tool-list" class="nav-list tools" aria-label="Tools"></nav>
+        </div>
       </section>
 
       <a id="settings-link" class="settings-tab" href="/settings">
@@ -92,7 +103,10 @@
       </section>
 
       <section id="profile-page" hidden>
-        <p><a id="back-to-case" class="back" href="/">← Back to case</a></p>
+        <p class="profile-nav">
+          <a id="back-to-case" class="back" href="/">← Back to case</a>
+          <button type="button" id="delete-profile" class="secondary">Delete profile</button>
+        </p>
         <div id="profile-full"></div>
       </section>
 

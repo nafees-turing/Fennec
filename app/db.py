@@ -151,3 +151,30 @@ def list_findings(path: Path, case_id: int, run_id: int | None = None) -> list[d
     return [dict(row) for row in rows]
 
 
+def delete_findings(path: Path, case_id: int, finding_ids: list[int]) -> int:
+    ids = [int(item) for item in finding_ids]
+    if not ids:
+        return 0
+    placeholders = ",".join("?" * len(ids))
+    with connect(path) as conn:
+        run_ids = [
+            int(row["run_id"])
+            for row in conn.execute(
+                f"SELECT DISTINCT run_id FROM findings WHERE case_id = ? AND id IN ({placeholders})",
+                [case_id, *ids],
+            ).fetchall()
+        ]
+        if not run_ids:
+            return 0
+        run_ph = ",".join("?" * len(run_ids))
+        cur = conn.execute(
+            f"DELETE FROM findings WHERE case_id = ? AND run_id IN ({run_ph})",
+            [case_id, *run_ids],
+        )
+        conn.execute(
+            f"DELETE FROM runs WHERE case_id = ? AND id IN ({run_ph})",
+            [case_id, *run_ids],
+        )
+        return cur.rowcount
+
+

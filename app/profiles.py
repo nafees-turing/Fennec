@@ -233,6 +233,7 @@ def build(findings: list[dict], lookups: list[dict] | None = None) -> list[dict]
                 "wikidata": slots["wikidata"],
                 "other": slots["other"][:12],
                 "finding_count": len(rows),
+                "finding_ids": [row["id"] for row in rows if row.get("id") is not None],
             }
         )
     profiles.sort(key=lambda item: (-item["finding_count"], item["title"].lower()))
