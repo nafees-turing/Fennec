@@ -597,6 +597,14 @@ def test_profiles_merge_shared_account():
     assert "ada@example.com" in profiles[0]["emails"]
     assert "ada" in profiles[0]["usernames"]
     assert "https://github.com/ada" in profiles[0]["accounts"]
+    similar = build(
+        [
+            {"id": 1, "run_id": 1, "kind": "username", "value": "test"},
+            {"id": 2, "run_id": 2, "kind": "username", "value": "testing"},
+        ]
+    )
+    assert len(similar) == 1
+    assert set(similar[0]["usernames"]) == {"test", "testing"}
 
 
 def test_home_shell(tmp_path):
@@ -606,6 +614,9 @@ def test_home_shell(tmp_path):
     assert "/static/favicon.svg" in response.text
     assert 'id="tool-list"' in response.text
     assert 'id="smart-input"' in response.text
+    page = client(tmp_path).get("/cases/1")
+    assert page.status_code == 200
+    assert "Fennec" in page.text
     assert "/static/app.js" in response.text
 
 

@@ -56,7 +56,7 @@ function persist() {
   localStorage.setItem("fennec.groups", JSON.stringify([...state.openGroups]));
 }
 
-async function loadCases(selectId) {
+async function loadCases(selectId, skipOpen) {
   const cases = await api("/api/cases");
   caseList.replaceChildren();
   if (cases.length === 0) {
@@ -79,10 +79,10 @@ async function loadCases(selectId) {
     const label = document.createElement("span");
     label.textContent = item.name;
     button.append(label);
-    button.addEventListener("click", () => openCase(item.id));
+    button.addEventListener("click", () => go(`/cases/${item.id}`));
     caseList.append(button);
   }
-  if (open) await openCase(open);
+  if (open && !skipOpen) await openCase(open, true);
   return cases;
 }
 
@@ -90,11 +90,68 @@ function showWorkspace(open) {
   document.querySelector("#welcome").hidden = open;
   document.querySelector("#results").hidden = !open;
   document.querySelector("#export-links").hidden = !open;
+  document.querySelector("#profile-page").hidden = true;
 }
 
-async function openCase(id) {
+function route() {
+  const match = location.pathname.match(/^\/cases\/(\d+)(?:\/profiles\/(\d+))?$/);
+  if (!match) return { caseId: state.caseId, profileId: null };
+  return { caseId: Number(match[1]), profileId: match[2] ? Number(match[2]) : null };
+}
+
+function go(path) {
+  history.pushState({}, "", path);
+  return renderRoute();
+}
+
+async function renderRoute() {
+  const { caseId, profileId } = route();
+  await loadCases(caseId || state.caseId, true);
+  if (profileId && caseId) {
+    await showProfilePage(caseId, profileId);
+    return;
+  }
+  if (caseId) await openCase(caseId, true);
+}
+
+function hrefFor(text, kind) {
+  const value = String(text || "").trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value) || value.startsWith("mailto:")) return value;
+  if (kind === "email" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `mailto:${value}`;
+  if ((kind === "wikidata" || kind === "Wikidata") && /^Q\d+$/i.test(value)) {
+    return `https://www.wikidata.org/wiki/${value}`;
+  }
+  return null;
+}
+
+function appendValue(node, text, kind) {
+  const href = hrefFor(text, kind);
+  if (!href) {
+    node.append(document.createTextNode(text));
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = href;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.className = "ext";
+  link.textContent = text;
+  node.append(link);
+}
+
+function fillList(node, values, kind) {
+  node.replaceChildren();
+  values.forEach((value, index) => {
+    if (index) node.append(document.createTextNode(" · "));
+    appendValue(node, value, kind);
+  });
+}
+
+async function openCase(id, keepUrl) {
   state.caseId = id;
   persist();
+  if (!keepUrl) history.pushState({}, "", `/cases/${id}`);
   const caseFile = await api(`/api/cases/${id}`);
   showWorkspace(true);
   document.querySelector("#export-json").href = `/api/cases/${id}/export`;
@@ -305,36 +362,96 @@ function renderProfiles(profiles) {
   }
   for (const profile of profiles) {
     const card = document.createElement("article");
-    card.className = "profile-card";
+    card.className = "profile-card profile-summary";
     const title = document.createElement("h3");
     title.append(icon("basic", "basic"));
     title.append(document.createTextNode(` ${profile.title}`));
     card.append(title);
     const dl = document.createElement("dl");
-    const groups = [
-      ["Names", profile.names],
-      ["Emails", profile.emails],
-      ["Phones", profile.phones],
-      ["Usernames", profile.usernames],
-      ["Accounts", profile.accounts],
-      ["Addresses", profile.addresses],
-      ["Companies", profile.companies],
-      ["Places", profile.places],
-      ["URLs", profile.urls],
-      ["Wallets", profile.wallets],
-      ["Wikidata", profile.wikidata],
+    const preview = [
+      ["Emails", profile.emails, "email"],
+      ["Phones", profile.phones, "phone"],
+      ["Usernames", (profile.usernames || []).slice(0, 4), "username"],
+      ["Accounts", (profile.accounts || []).slice(0, 3), "url"],
     ];
-    for (const [label, values] of groups) {
+    for (const [label, values, kind] of preview) {
       if (!values || !values.length) continue;
       const dt = document.createElement("dt");
       dt.textContent = label;
       const dd = document.createElement("dd");
-      dd.textContent = values.join(" · ");
+      fillList(dd, values, kind);
       dl.append(dt, dd);
     }
     card.append(dl);
+    const more = document.createElement("a");
+    more.className = "more";
+    more.href = `/cases/${state.caseId}/profiles/${profile.id}`;
+    more.textContent = "Open full profile →";
+    more.addEventListener("click", (event) => {
+      event.preventDefault();
+      go(`/cases/${state.caseId}/profiles/${profile.id}`);
+    });
+    card.append(more);
     host.append(card);
   }
+}
+
+function renderProfileDetail(profile) {
+  const host = document.querySelector("#profile-full");
+  host.replaceChildren();
+  const card = document.createElement("article");
+  card.className = "profile-card";
+  const title = document.createElement("h3");
+  title.append(icon("basic", "basic"));
+  title.append(document.createTextNode(` ${profile.title}`));
+  card.append(title);
+  const dl = document.createElement("dl");
+  const groups = [
+    ["Names", profile.names, "name"],
+    ["Emails", profile.emails, "email"],
+    ["Phones", profile.phones, "phone"],
+    ["Usernames", profile.usernames, "username"],
+    ["Accounts", profile.accounts, "url"],
+    ["Addresses", profile.addresses, "address"],
+    ["Companies", profile.companies, "company"],
+    ["Places", profile.places, "place"],
+    ["URLs", profile.urls, "url"],
+    ["Wallets", profile.wallets, "wallet"],
+    ["Wikidata", profile.wikidata, "wikidata"],
+    ["Other", profile.other, "other"],
+  ];
+  for (const [label, values, kind] of groups) {
+    if (!values || !values.length) continue;
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    fillList(dd, values, kind);
+    dl.append(dt, dd);
+  }
+  card.append(dl);
+  host.append(card);
+}
+
+async function showProfilePage(caseId, profileId) {
+  state.caseId = caseId;
+  persist();
+  const caseFile = await api(`/api/cases/${caseId}`);
+  const profile = (caseFile.profiles || []).find((item) => item.id === profileId);
+  document.querySelector("#welcome").hidden = true;
+  document.querySelector("#results").hidden = true;
+  document.querySelector("#export-links").hidden = true;
+  document.querySelector("#profile-page").hidden = false;
+  document.querySelector("#back-to-case").href = `/cases/${caseId}`;
+  const heading = document.querySelector("#case-title");
+  heading.textContent = profile ? profile.title : "Profile not found";
+  tint(heading, caseId);
+  document.querySelector("#case-kicker").textContent = `Case ${caseId} · profile`;
+  document.querySelector("#case-notes").textContent = caseFile.name;
+  document.querySelector("#case-stats").textContent = profile
+    ? `${profile.finding_count} combined findings`
+    : "";
+  if (profile) renderProfileDetail(profile);
+  else document.querySelector("#profile-full").textContent = "That profile is not on this case.";
 }
 
 function findingsTable(rows) {
@@ -357,6 +474,8 @@ function findingsTable(rows) {
         pill.className = `kind hue-${kindHue(row.kind)}`;
         pill.textContent = row.kind || "";
         td.append(pill);
+      } else if (key === "value" || key === "evidence") {
+        appendValue(td, row[key] || "", key === "value" ? row.kind : "url");
       } else {
         td.textContent = row[key] || "";
       }
@@ -424,7 +543,9 @@ function renderLinks(rows) {
   }
   for (const row of rows) {
     const li = document.createElement("li");
-    li.textContent = `${row.kind} · ${row.value} · ${row.count} findings`;
+    li.append(document.createTextNode(`${row.kind} · `));
+    appendValue(li, row.value, row.kind);
+    li.append(document.createTextNode(` · ${row.count} findings`));
     host.append(li);
   }
 }
@@ -495,17 +616,34 @@ document.querySelector("#new-case").addEventListener("submit", async (event) => 
     });
     form.reset();
     setNotice("Case open.");
-    await loadCases(created.id);
+    await loadCases(created.id, true);
+    await go(`/cases/${created.id}`);
   } catch (error) {
     setNotice(error.message);
   }
+});
+
+document.querySelector("#back-to-case").addEventListener("click", (event) => {
+  event.preventDefault();
+  if (state.caseId) go(`/cases/${state.caseId}`);
+  else go("/");
+});
+
+window.addEventListener("popstate", () => {
+  renderRoute().catch((error) => setNotice(error.message));
 });
 
 async function boot() {
   state.modules = await api("/api/modules");
   renderTools();
   renderChips();
-  await loadCases(state.caseId);
+  const { caseId, profileId } = route();
+  if (profileId && caseId) {
+    await loadCases(caseId);
+    await showProfilePage(caseId, profileId);
+    return;
+  }
+  await loadCases(caseId || state.caseId);
 }
 
 boot().catch((error) => setNotice(error.message));

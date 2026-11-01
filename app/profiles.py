@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from difflib import SequenceMatcher
 from urllib.parse import urlparse
 
 from app.detect import classify
@@ -56,7 +57,11 @@ def identity_keys(kind: str, value: str) -> list[str]:
         digits = _norm_phone(text)
         return [f"phone:{digits}"] if len(digits) >= 8 else []
     if kind == "email":
-        return [f"email:{lowered}"]
+        keys = [f"email:{lowered}"]
+        local = lowered.split("@", 1)[0]
+        if len(local) >= 3:
+            keys.append(f"username:{local}")
+        return keys
     if kind == "username":
         return [f"username:{lowered.lstrip('@')}"]
     if kind == "name":
@@ -167,6 +172,8 @@ def build(findings: list[dict], lookups: list[dict] | None = None) -> list[dict]
                     }
                 )
 
+    merge_similar(uf)
+
     buckets: dict[str, list[dict]] = defaultdict(list)
     for row in list(findings) + extra:
         kind = str(row.get("kind") or "")
@@ -229,4 +236,33 @@ def build(findings: list[dict], lookups: list[dict] | None = None) -> list[dict]
             }
         )
     profiles.sort(key=lambda item: (-item["finding_count"], item["title"].lower()))
+    for index, profile in enumerate(profiles, start=1):
+        profile["id"] = index
     return profiles
+
+
+def similar_handle(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    short, long_ = (left, right) if len(left) <= len(right) else (right, left)
+    if len(short) >= 4 and (long_.startswith(short) or short in long_ and len(long_) - len(short) <= 5):
+        return True
+    return min(len(left), len(right)) >= 4 and SequenceMatcher(None, left, right).ratio() >= 0.82
+
+
+def merge_similar(uf: UnionFind) -> None:
+    handles = [key for key in list(uf.parent) if key.startswith("username:")]
+    for i, left in enumerate(handles):
+        a = left.split(":", 1)[1]
+        for right in handles[i + 1 :]:
+            b = right.split(":", 1)[1]
+            if similar_handle(a, b):
+                uf.union(left, right)
+    names = [key for key in list(uf.parent) if key.startswith("name:")]
+    for i, left in enumerate(names):
+        a = left.split(":", 1)[1]
+        for right in names[i + 1 :]:
+            b = right.split(":", 1)[1]
+            if similar_handle(a.replace(" ", ""), b.replace(" ", "")) or a in b or b in a:
+                uf.union(left, right)
+

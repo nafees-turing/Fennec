@@ -42,9 +42,20 @@ def create_app(
     app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
     templates = Jinja2Templates(directory=str(WEB))
 
+    def spa() -> str:
+        return (WEB / "index.html").read_text(encoding="utf-8")
+
     @app.get("/", response_class=HTMLResponse)
     def home() -> str:
-        return (WEB / "index.html").read_text(encoding="utf-8")
+        return spa()
+
+    @app.get("/cases/{case_id}", response_class=HTMLResponse)
+    def case_page(case_id: int) -> str:
+        return spa()
+
+    @app.get("/cases/{case_id}/profiles/{profile_id}", response_class=HTMLResponse)
+    def profile_page(case_id: int, profile_id: int) -> str:
+        return spa()
 
     @app.get("/api/health")
     def health() -> JSONResponse:
