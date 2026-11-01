@@ -6,11 +6,11 @@ The long survey lives in [osint-platforms.md](osint-platforms.md). Fennec only s
 
 | Group | Tools | Survey analogue |
 |-------|--------|-----------------|
-| **Basic** | Email, Name, Username, Phone | holehe; person name as a case fact; small public-profile URLs instead of full Maigret/Sherlock; phonenumbers / PhoneInfoga *local* fields (country, carrier, line type, timezone) |
-| **Social** | Social profiles, GitHub | Six-site existence check plus one GitHub API user lookup (OctoSuite-lite). Not Instaloader, Osintgram, Toutatis, or GHunt |
-| **Addresses** | Address, Company | Case fact for a postal line; Wikidata (one search + one entity) instead of OpenCorporates API |
-| **Network** | Domain, IP network, Reverse DNS, InternetDB, Certificates, Web archive | dnspython + whoisdomain; local ASN/scope; one PTR; one keyless Shodan InternetDB call; one crt.sh query; one Wayback check. Not Amass, Subfinder, dnstwist, or gau dumps |
-| **Crypto** | Bitcoin | One mempool.space address lookup |
+| **Basic** | Email, Name, Person, Username, Phone | holehe; local name fact; Wikidata person (one search + one fetch); small profile URLs; phonenumbers local fields |
+| **Social** | Social profiles, GitHub, Gravatar | Six-site existence check; one GitHub user call; one Gravatar JSON call |
+| **Addresses** | Address, Company, Sanctions | Postal line; Wikidata org; one OpenSanctions search |
+| **Network** | Domain, IP, Reverse DNS, InternetDB, BGP, Certificates, Web archive | DNS/RDAP; local ASN; PTR; InternetDB; BGPView; crt.sh; Wayback |
+| **Crypto** | Bitcoin, Ethereum | mempool.space; Blockscout |
 | **Files** | File metadata | Pillow EXIF/hash. ExifTool remains optional later |
 
 ## Explicitly out (for now)

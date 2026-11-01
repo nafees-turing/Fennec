@@ -440,6 +440,36 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     )
     assert btc.status_code == 201
     assert any(i["kind"] == "balance" for i in btc.json()["data"]["findings"])
+    monkeypatch.setattr(
+        "app.modules.gravatar.fetch_profile",
+        lambda _email: {"hash": "abc", "entry": {"displayName": "Ada", "profileUrl": "https://gravatar.com/ada", "accounts": []}},
+    )
+    monkeypatch.setattr(
+        "app.modules.sanctions.search_sanctions",
+        lambda _q: [{"caption": "Example Ltd", "schema": "Company", "id": "ex-1"}],
+    )
+    monkeypatch.setattr(
+        "app.modules.bgp.fetch_bgp",
+        lambda _ip: {"prefixes": [{"prefix": "1.1.1.0/24", "asn": {"asn": 13335, "name": "CLOUDFLARENET"}}], "rir_allocation": {"rir_name": "ARIN"}},
+    )
+    monkeypatch.setattr(
+        "app.modules.ethereum.fetch_address",
+        lambda _addr: {"name": None, "coin_balance": "1", "is_contract": False},
+    )
+    monkeypatch.setattr(
+        "app.modules.person.search_wikidata",
+        lambda _name: {"hits": [{"id": "Q7259", "label": "Ada Lovelace", "description": "mathematician"}], "entity": {"labels": {"en": {"value": "Ada Lovelace"}}, "descriptions": {"en": {"value": "mathematician"}}, "claims": {}}},
+    )
+    grav = api.post("/api/cases/1/runs", json={"module": "gravatar", "value": "ada@example.com"})
+    assert grav.status_code == 201
+    san = api.post("/api/cases/1/runs", json={"module": "sanctions", "value": "Example Ltd"})
+    assert ("sanction", "Example Ltd") in {(i["kind"], i["value"]) for i in san.json()["data"]["findings"]}
+    bgp = api.post("/api/cases/1/runs", json={"module": "bgp", "value": "1.1.1.1"})
+    assert ("asn", "AS13335") in {(i["kind"], i["value"]) for i in bgp.json()["data"]["findings"]}
+    eth = api.post("/api/cases/1/runs", json={"module": "ethereum", "value": "0x" + "a" * 40})
+    assert eth.status_code == 201
+    person = api.post("/api/cases/1/runs", json={"module": "person", "value": "Ada Lovelace"})
+    assert ("wikidata", "Q7259") in {(i["kind"], i["value"]) for i in person.json()["data"]["findings"]}
 
 
 def test_detect_and_smart_phone_lookup(tmp_path):
@@ -447,13 +477,13 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     email = api.get("/api/detect", params={"q": "Ada@Example.com"})
     assert email.json()["data"]["detected"] == "email"
     modules = [item["module"] for item in email.json()["data"]["matches"]]
-    assert modules == ["email", "domain"]
+    assert modules == ["email", "domain", "gravatar"]
     phone = api.get("/api/detect", params={"q": "+41446681800"})
     assert phone.json()["data"]["detected"] == "phone"
     handle = api.get("/api/detect", params={"q": "@octocat"})
     assert [item["module"] for item in handle.json()["data"]["matches"]] == ["username", "social", "github"]
     ip = api.get("/api/detect", params={"q": "1.1.1.1"})
-    assert [item["module"] for item in ip.json()["data"]["matches"]] == ["geoip", "rdns", "internetdb"]
+    assert [item["module"] for item in ip.json()["data"]["matches"]] == ["geoip", "rdns", "internetdb", "bgp"]
     api.post("/api/cases", json={"name": "Auto"})
     run = api.post("/api/cases/1/lookup", json={"value": "+41446681800"})
     assert run.status_code == 201

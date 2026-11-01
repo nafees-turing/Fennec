@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from app.modules.bitcoin import BTC
 from app.modules.domain import HOST, normalize_host
+from app.modules.ethereum import ETH
 
 EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 USER = re.compile(r"^[A-Za-z0-9._-]{2,39}$")
@@ -39,6 +40,7 @@ def classify(raw: str) -> dict:
         matches = [
             _match("email", email, "Email", "email"),
             _match("domain", host, "Mailbox domain", "domain"),
+            _match("gravatar", email, "Gravatar", "email"),
         ]
         return {"detected": "email", "matches": matches}
 
@@ -56,6 +58,7 @@ def classify(raw: str) -> dict:
                 _match("geoip", text, "IP network", "ip"),
                 _match("rdns", text, "Reverse DNS", "ip"),
                 _match("internetdb", text, "InternetDB", "ip"),
+                _match("bgp", text, "BGP", "ip"),
             ],
         }
     except ValueError:
@@ -81,7 +84,10 @@ def classify(raw: str) -> dict:
     if COMPANY_HINT.search(text):
         return {
             "detected": "company",
-            "matches": [_match("company", text, "Company", "company")],
+            "matches": [
+                _match("company", text, "Company", "company"),
+                _match("sanctions", text, "Sanctions", "company"),
+            ],
         }
 
     if "," in text or STREET_HINT.search(text):
@@ -93,7 +99,11 @@ def classify(raw: str) -> dict:
     if " " in text:
         return {
             "detected": "name",
-            "matches": [_match("name", text, "Person name", "name")],
+            "matches": [
+                _match("name", text, "Person name", "name"),
+                _match("person", text, "Wikidata person", "name"),
+                _match("sanctions", text, "Sanctions", "name"),
+            ],
         }
 
     handle = text[1:] if text.startswith("@") else text
@@ -111,6 +121,12 @@ def classify(raw: str) -> dict:
         return {
             "detected": "bitcoin",
             "matches": [_match("bitcoin", text, "Bitcoin", "wallet")],
+        }
+
+    if ETH.fullmatch(text):
+        return {
+            "detected": "ethereum",
+            "matches": [_match("ethereum", text, "Ethereum", "wallet")],
         }
 
     return {"detected": None, "matches": []}
