@@ -557,6 +557,9 @@ def test_detect_and_smart_phone_lookup(tmp_path):
         "stackoverflow",
         "devto",
     ]
+    dotted = api.get("/api/detect", params={"q": "202.83.232.198"})
+    assert dotted.json()["data"]["detected"] == "ip"
+    assert "phone" not in [item["module"] for item in dotted.json()["data"]["matches"]]
     ip = api.get("/api/detect", params={"q": "1.1.1.1"})
     assert [item["module"] for item in ip.json()["data"]["matches"]] == [
         "geoip",
@@ -627,6 +630,7 @@ def test_home_shell(tmp_path):
     assert settings.status_code == 200
     assert "email" in settings.json()["data"]["default_modules"]
     assert "internetdb" not in settings.json()["data"]["default_modules"]
+    assert "geoip" in settings.json()["data"]["default_modules"]
     saved = api.put("/api/settings", json={"default_modules": ["phone"]})
     assert saved.json()["data"]["default_modules"] == ["phone"]
     again = api.get("/api/settings")
@@ -639,6 +643,7 @@ def test_home_shell(tmp_path):
     assert "#i-settings" in home.text
     assert 'id="case-filter"' in home.text
     assert 'id="tool-filter"' in home.text
+    assert 'id="case-tabs"' in home.text
     assert "/static/app.js" in response.text
 
 

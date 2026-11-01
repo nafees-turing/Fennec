@@ -14,6 +14,7 @@ const state = {
   casesOpen: localStorage.getItem("fennec.casesOpen") !== "0",
   toolsOpen: localStorage.getItem("fennec.toolsOpen") !== "0",
   profileId: null,
+  tab: "result",
 };
 
 const notice = document.querySelector("#notice");
@@ -229,7 +230,18 @@ async function openCase(id, keepUrl) {
   renderProfiles(caseFile.profiles || []);
   renderLookups(caseFile.lookups || []);
   renderLinks(caseFile.links || []);
+  showTab(state.tab);
   paintCaseList();
+}
+
+function showTab(name) {
+  state.tab = name;
+  for (const button of document.querySelectorAll("#case-tabs [data-tab]")) {
+    button.classList.toggle("on", button.dataset.tab === name);
+  }
+  for (const panel of document.querySelectorAll(".tab-panel")) {
+    panel.hidden = panel.id !== `tab-${name}`;
+  }
 }
 
 function paintCaseList() {
@@ -560,15 +572,13 @@ function findingsTable(rows) {
   return wrap;
 }
 
-function renderLookups(lookups) {
-  lookupsHost.replaceChildren();
-  const total = lookups.reduce((sum, item) => sum + item.runs.reduce((n, run) => n + (run.findings || []).length, 0), 0);
-  document.querySelector("#finding-count").textContent = `${lookups.length} searches · ${total} findings`;
+function paintLookupCards(host, lookups, emptyText) {
+  host.replaceChildren();
   if (!lookups.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.textContent = "No searches on this case yet. Use the bar above.";
-    lookupsHost.append(empty);
+    empty.textContent = emptyText;
+    host.append(empty);
     return;
   }
   lookups.forEach((lookup, index) => {
@@ -578,7 +588,7 @@ function renderLookups(lookups) {
     head.className = "lookup-head";
     const title = document.createElement("h3");
     title.append(icon("search", "search"));
-    title.append(document.createTextNode(` Search ${lookups.length - index} · ${lookup.query}`));
+    title.append(document.createTextNode(` ${lookup.query}`));
     const meta = document.createElement("p");
     meta.className = "count";
     meta.textContent = `${lookup.runs.length} tools · ${lookup.created_at || ""}`;
@@ -599,8 +609,20 @@ function renderLookups(lookups) {
       block.append(findingsTable(run.findings || []));
       card.append(block);
     }
-    lookupsHost.append(card);
+    host.append(card);
   });
+}
+
+function renderLookups(lookups) {
+  const total = lookups.reduce((sum, item) => sum + item.runs.reduce((n, run) => n + (run.findings || []).length, 0), 0);
+  const count = document.querySelector("#finding-count");
+  if (count) count.textContent = `${lookups.length} searches · ${total} findings`;
+  paintLookupCards(
+    document.querySelector("#current-lookup"),
+    lookups.slice(0, 1),
+    "Run a lookup above. This tab shows only that result.",
+  );
+  paintLookupCards(lookupsHost, lookups, "No searches on this case yet.");
 }
 
 function renderLinks(rows) {
@@ -673,6 +695,7 @@ document.querySelector("#smart-form").addEventListener("submit", async (event) =
     const names = result.matches.map((item) => item.label).join(", ");
     setNotice(`Detected ${result.detected}. Ran ${names || "selected tools"}.`);
     document.querySelector("#smart-input").value = "";
+    state.tab = "result";
     await openCase(state.caseId);
   } catch (error) {
     setNotice(error.message);
@@ -743,6 +766,11 @@ async function loadSettings() {
   state.personalDefaults = data.personal_defaults || [];
   state.defaults = new Set(data.default_modules || state.personalDefaults);
 }
+
+document.querySelector("#case-tabs").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-tab]");
+  if (button) showTab(button.dataset.tab);
+});
 
 document.querySelector("#cases-toggle").addEventListener("click", () => {
   state.casesOpen = !state.casesOpen;

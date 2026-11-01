@@ -118,18 +118,31 @@
           </form>
           <div id="smart-chips" class="chips" aria-live="polite"></div>
         </div>
-        <div class="row-head">
-          <h2 class="hue-basic"><svg class="icon hue-basic"><use href="#i-basic"/></svg> Profiles <span id="profile-count" class="count"></span></h2>
-        </div>
-        <div id="profiles" class="profiles"></div>
-        <div class="row-head">
-          <h2 class="hue-search"><svg class="icon hue-search"><use href="#i-findings"/></svg> Searches <span id="finding-count" class="count"></span></h2>
-        </div>
-        <div id="lookups" class="lookups"></div>
-        <div>
+        <nav id="case-tabs" class="case-tabs" aria-label="Case sections">
+          <button type="button" data-tab="result" class="on">This search</button>
+          <button type="button" data-tab="history">History</button>
+          <button type="button" data-tab="profiles">Profiles</button>
+          <button type="button" data-tab="links">Links</button>
+        </nav>
+        <section id="tab-result" class="tab-panel">
+          <div id="current-lookup" class="lookups"></div>
+        </section>
+        <section id="tab-history" class="tab-panel" hidden>
+          <div class="row-head">
+            <h2 class="hue-search"><svg class="icon hue-search"><use href="#i-findings"/></svg> All searches <span id="finding-count" class="count"></span></h2>
+          </div>
+          <div id="lookups" class="lookups"></div>
+        </section>
+        <section id="tab-profiles" class="tab-panel" hidden>
+          <div class="row-head">
+            <h2 class="hue-basic"><svg class="icon hue-basic"><use href="#i-basic"/></svg> Profiles <span id="profile-count" class="count"></span></h2>
+          </div>
+          <div id="profiles" class="profiles"></div>
+        </section>
+        <section id="tab-links" class="tab-panel" hidden>
           <h2 class="hue-addresses"><svg class="icon hue-addresses"><use href="#i-links"/></svg> Links</h2>
           <ul id="links" class="runs"></ul>
-        </div>
+        </section>
       </section>
       <p id="notice" class="notice" role="status"></p>
     </main>

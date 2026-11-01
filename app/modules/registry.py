@@ -49,6 +49,7 @@ DEFAULT_MODULES = [
     "github",
     "gravatar",
     "pgp",
+    "geoip",
 ]
 
 CATEGORIES = [

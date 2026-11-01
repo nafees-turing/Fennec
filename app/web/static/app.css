@@ -195,6 +195,16 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip { background: transparent; color: var(--muted); }
 .stage { min-width: 0; display: flex; flex-direction: column; }
 .top { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
+.case-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin: 0 auto 1rem; max-width: 36rem; justify-content: center; }
+.case-tabs button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font-weight: 650;
+  padding: 0.45rem 0.8rem;
+}
+.case-tabs button.on { background: #163056; color: #dbeafe; border-color: #1d4ed8; }
+.tab-panel { margin-bottom: 1.2rem; }
 .search-panel { margin: 0 auto 0.9rem; max-width: 36rem; }
 .smart-form { display: flex; gap: 0.4rem; justify-content: center; }
 .smart-form input { flex: 1; min-width: 0; }

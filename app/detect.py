@@ -19,6 +19,21 @@ STREET_HINT = re.compile(
 )
 
 
+def _as_phone(text: str) -> str | None:
+    if "." in text:
+        return None
+    compact = re.sub(r"[\s()-]", "", text)
+    if compact.startswith("00") and compact[2:].isdigit():
+        compact = "+" + compact[2:]
+    elif text.startswith("+"):
+        compact = "+" + re.sub(r"\D", "", text)
+    elif compact.isdigit() and 10 <= len(compact) <= 15:
+        compact = "+" + compact
+    else:
+        return None
+    return compact if PHONE_COMPACT.fullmatch(compact) else None
+
+
 def _match(module: str, value: str, label: str, kind: str) -> dict:
     return {"module": module, "value": value, "label": label, "kind": kind}
 
@@ -27,12 +42,6 @@ def classify(raw: str) -> dict:
     text = re.sub(r"\s+", " ", raw).strip()
     if not text:
         return {"detected": None, "matches": []}
-
-    compact = re.sub(r"[\s().-]", "", text)
-    if compact.startswith("00") and compact[2:].isdigit():
-        compact = "+" + compact[2:]
-    elif compact.isdigit() and len(compact) >= 10:
-        compact = "+" + compact
 
     if EMAIL.fullmatch(text.lower()):
         email = text.lower()
@@ -44,12 +53,6 @@ def classify(raw: str) -> dict:
             _match("pgp", email, "PGP", "email"),
         ]
         return {"detected": "email", "matches": matches}
-
-    if PHONE_COMPACT.fullmatch(compact):
-        return {
-            "detected": "phone",
-            "matches": [_match("phone", compact, "Phone", "phone")],
-        }
 
     try:
         ipaddress.ip_address(text)
@@ -66,6 +69,13 @@ def classify(raw: str) -> dict:
         }
     except ValueError:
         pass
+
+    phone = _as_phone(text)
+    if phone:
+        return {
+            "detected": "phone",
+            "matches": [_match("phone", phone, "Phone", "phone")],
+        }
 
     host = ""
     if "://" in text or text.startswith("www."):
