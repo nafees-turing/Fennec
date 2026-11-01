@@ -109,6 +109,7 @@ async function openCase(id) {
   document.querySelector("#case-stats").textContent =
     `${caseFile.findings.length} findings · ${caseFile.runs.length} lookups · ${ (caseFile.links || []).length } links`;
   state.findings = caseFile.findings;
+  renderProfiles(caseFile.profiles || []);
   renderLookups(caseFile.lookups || []);
   renderLinks(caseFile.links || []);
   paintCaseList();
@@ -289,6 +290,51 @@ function renderChips() {
     host.append(chip);
   }
   renderTools();
+}
+
+function renderProfiles(profiles) {
+  const host = document.querySelector("#profiles");
+  host.replaceChildren();
+  document.querySelector("#profile-count").textContent = `${profiles.length} combined`;
+  if (!profiles.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "Profiles appear here when a search has a person identifier. Not-found tools stay in Searches only.";
+    host.append(empty);
+    return;
+  }
+  for (const profile of profiles) {
+    const card = document.createElement("article");
+    card.className = "profile-card";
+    const title = document.createElement("h3");
+    title.append(icon("basic", "basic"));
+    title.append(document.createTextNode(` ${profile.title}`));
+    card.append(title);
+    const dl = document.createElement("dl");
+    const groups = [
+      ["Names", profile.names],
+      ["Emails", profile.emails],
+      ["Phones", profile.phones],
+      ["Usernames", profile.usernames],
+      ["Accounts", profile.accounts],
+      ["Addresses", profile.addresses],
+      ["Companies", profile.companies],
+      ["Places", profile.places],
+      ["URLs", profile.urls],
+      ["Wallets", profile.wallets],
+      ["Wikidata", profile.wikidata],
+    ];
+    for (const [label, values] of groups) {
+      if (!values || !values.length) continue;
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = values.join(" · ");
+      dl.append(dt, dd);
+    }
+    card.append(dl);
+    host.append(card);
+  }
 }
 
 function findingsTable(rows) {

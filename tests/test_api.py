@@ -575,8 +575,28 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert len(case["lookups"]) == 1
     assert case["lookups"][0]["query"] == "+41446681800"
     assert case["lookups"][0]["runs"][0]["module_id"] == "phone"
+    assert case["profiles"]
+    assert any("+41446681800" in (item.get("phones") or []) or item["title"] for item in case["profiles"])
     skipped = api.post("/api/cases/1/lookup", json={"value": "+41446681800", "modules": ["email"]})
     assert skipped.status_code == 400
+
+
+def test_profiles_merge_shared_account():
+    from app.profiles import build
+
+    profiles = build(
+        [
+            {"id": 1, "run_id": 1, "kind": "email", "value": "ada@example.com"},
+            {"id": 2, "run_id": 1, "kind": "account", "value": "https://github.com/ada"},
+            {"id": 3, "run_id": 2, "kind": "username", "value": "ada"},
+            {"id": 4, "run_id": 2, "kind": "account", "value": "https://github.com/ada"},
+            {"id": 5, "run_id": 2, "kind": "rate_limit", "value": "tiktok"},
+        ]
+    )
+    assert len(profiles) == 1
+    assert "ada@example.com" in profiles[0]["emails"]
+    assert "ada" in profiles[0]["usernames"]
+    assert "https://github.com/ada" in profiles[0]["accounts"]
 
 
 def test_home_shell(tmp_path):

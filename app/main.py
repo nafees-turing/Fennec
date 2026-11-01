@@ -11,7 +11,7 @@ from app import pdf as pdf_export
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app import correlate, db, detect as detect_mod
+from app import correlate, db, detect as detect_mod, profiles as profiles_mod
 from app.modules.base import ModuleResult
 from app.modules.registry import execute, get_module, list_modules
 from app.netguard import NetworkGuard
@@ -80,6 +80,7 @@ def create_app(
         case["findings"] = db.list_findings(app.state.db_path, case_id)
         case["links"] = correlate.links(case["findings"])
         case["lookups"] = group_lookups(case["runs"], case["findings"])
+        case["profiles"] = profiles_mod.build(case["findings"], case["lookups"])
         return case
 
     @app.get("/api/cases/{case_id}")
