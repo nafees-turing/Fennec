@@ -1,5 +1,5 @@
 from app.modules.base import ModuleResult, ModuleSpec
-from app.modules import email, phone
+from app.modules import domain, email, phone
 
 PLANNED = [
     ModuleSpec(
@@ -13,16 +13,6 @@ PLANNED = [
         reason="Adapter is registered. Maigret runs in M2.",
     ),
     ModuleSpec(
-        id="domain",
-        title="Domain",
-        milestone="M4",
-        summary="DNS plus RDAP/WHOIS through whoisdomain.",
-        input_label="Domain",
-        placeholder="example.com",
-        available=False,
-        reason="Adapter is registered. DNS and WHOIS run in M4.",
-    ),
-    ModuleSpec(
         id="metadata",
         title="File metadata",
         milestone="M6",
@@ -34,8 +24,8 @@ PLANNED = [
     ),
 ]
 
-_SPECS = {item.id: item for item in [email.SPEC, phone.SPEC, *PLANNED]}
-_RUNNERS = {"email": email.run, "phone": phone.run}
+_SPECS = {item.id: item for item in [email.SPEC, phone.SPEC, domain.SPEC, *PLANNED]}
+_RUNNERS = {"email": email.run, "phone": phone.run, "domain": domain.run}
 
 
 def list_modules() -> list[ModuleSpec]:

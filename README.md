@@ -6,7 +6,7 @@ The milestone plan is in [Fennec_Plan.md](Fennec_Plan.md).
 
 ## Status
 
-Cases, phone metadata, and email (Holehe) are live. Username, domain, and file metadata stay registered and return `module_unavailable` until their milestones. An email run contacts many sites and can take about a minute. pytest uses a fake Holehe scanner and does not hit the network.
+Cases, phone, email (Holehe), and domain (dnspython + whoisdomain) are live. Username and file metadata stay registered and return `module_unavailable` until their milestones. An email run contacts many sites and can take about a minute. Domain looks up public DNS and RDAP/WHOIS. pytest injects fakes and does not hit the network.
 
 ## Setup
 
@@ -42,6 +42,6 @@ pytest
 
 ## Libraries
 
-Pinned in `requirements.txt`: FastAPI 0.162, Uvicorn 0.54, Jinja2 3.1.6, phonenumbers 9.0.42, holehe 1.61, pytest 9.2, httpx 0.28.1. Later milestones add Maigret, dnspython, and whoisdomain (RDAP first). `python-whois` is not the default because gTLD WHOIS has been retired.
+Pinned in `requirements.txt`: FastAPI 0.162, Uvicorn 0.54, Jinja2 3.1.6, phonenumbers 9.0.42, holehe 1.61, dnspython 2.9.1, whoisdomain 2.20260806.3, pytest 9.2, httpx 0.28.1. Later milestones add Maigret and ExifTool. `python-whois` is not the default because gTLD WHOIS has been retired.
 
 Lawful use only. Phone results are numbering-plan metadata, not a subscriber lookup.

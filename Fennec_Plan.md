@@ -123,12 +123,12 @@ Empty app that runs locally.
 
 ### M4 — Domain
 
-- WHOIS via `python-whois` when the network test is enabled.
-- DNS records (A, AAAA, MX, NS, TXT) via dnspython.
-- Offline test uses a fake resolver and a saved WHOIS fixture.
-- No theHarvester in this milestone. Add it only after DNS and WHOIS are stable.
+- DNS (A, AAAA, MX, NS, TXT) via dnspython.
+- Registration via whoisdomain, RDAP first, classic WHOIS if RDAP is empty.
+- Tests inject fake DNS and WHOIS so pytest stays offline.
+- No theHarvester in this milestone.
 
-**Test:** fixture in, findings out, no live DNS.
+**Test:** fixture in, findings out, no live DNS. A junk host fails the run.
 
 ### M5 — Phone
 

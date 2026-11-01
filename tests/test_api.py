@@ -16,8 +16,9 @@ def test_health_and_modules(tmp_path):
     by_id = {item["id"]: item for item in modules}
     assert by_id["phone"]["available"] is True
     assert by_id["email"]["available"] is True
+    assert by_id["domain"]["available"] is True
     assert by_id["username"]["available"] is False
-    assert by_id["domain"]["summary"].find("whoisdomain") >= 0
+    assert "RDAP" in by_id["domain"]["summary"]
 
 
 def test_case_and_phone_run(tmp_path):
@@ -104,6 +105,58 @@ def test_bad_email_is_a_failed_run(tmp_path, monkeypatch):
     api = client(tmp_path)
     api.post("/api/cases", json={"name": "Bad mail"})
     run = api.post("/api/cases/1/runs", json={"module": "email", "value": "not-an-email"})
+    assert run.status_code == 201
+    assert run.json()["data"]["status"] == "failed"
+    assert run.json()["data"]["findings"] == []
+
+
+def fake_dns(_host):
+    return {
+        "A": ["93.184.216.34"],
+        "AAAA": [],
+        "MX": ["0 ."],
+        "NS": ["a.iana-servers.net."],
+        "TXT": ["v=spf1 -all"],
+    }
+
+
+def fake_whois(_host):
+    return {
+        "registrar": "RESERVED-Internet Assigned Numbers Authority",
+        "registrant": "",
+        "registrant_country": "US",
+        "creation_date": "1995-08-14T04:00:00+00:00",
+        "expiration_date": "2026-08-13T04:00:00+00:00",
+        "updated_date": "",
+        "name_servers": ["a.iana-servers.net"],
+        "emails": [],
+        "status": "clientHold",
+        "source": "rdap",
+    }
+
+
+def test_domain_run_uses_injected_lookups(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.modules.domain.lookup_dns", fake_dns)
+    monkeypatch.setattr("app.modules.domain.lookup_whois", fake_whois)
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Host"})
+    run = api.post("/api/cases/1/runs", json={"module": "domain", "value": "https://www.example.com/path"})
+    assert run.status_code == 201
+    body = run.json()["data"]
+    assert body["status"] == "ok"
+    kinds = {(item["kind"], item["value"]) for item in body["findings"]}
+    assert ("domain", "example.com") in kinds
+    assert ("ip", "93.184.216.34") in kinds
+    assert ("registrar", "RESERVED-Internet Assigned Numbers Authority") in kinds
+    assert ("country", "US") in kinds
+
+
+def test_bad_domain_is_a_failed_run(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.modules.domain.lookup_dns", fake_dns)
+    monkeypatch.setattr("app.modules.domain.lookup_whois", fake_whois)
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Bad host"})
+    run = api.post("/api/cases/1/runs", json={"module": "domain", "value": "not a domain"})
     assert run.status_code == 201
     assert run.json()["data"]["status"] == "failed"
     assert run.json()["data"]["findings"] == []
