@@ -65,7 +65,7 @@ async function loadCases(selectId) {
     button.type = "button";
     button.title = item.name;
     button.className = item.id === open ? "active" : "";
-    button.append(icon("case"));
+    button.append(icon("case", "case"));
     const label = document.createElement("span");
     label.textContent = item.name;
     button.append(label);
@@ -148,9 +148,19 @@ const TOOL_ICONS = {
   metadata: "files",
 };
 
-function icon(name) {
+function kindHue(kind) {
+  if (["email", "phone", "name", "username", "line_type", "region", "carrier", "timezone"].includes(kind)) return "basic";
+  if (["account", "note", "query"].includes(kind)) return "social";
+  if (["address", "company", "place", "coords", "sanction"].includes(kind)) return "addresses";
+  if (["domain", "ip", "hostname", "asn", "org", "port", "prefix", "cert_name", "rir", "noise", "software", "cve"].includes(kind)) return "network";
+  if (["wallet", "balance", "tx_count"].includes(kind)) return "crypto";
+  if (["file", "hash", "format", "exif", "gps"].includes(kind)) return "files";
+  return "search";
+}
+
+function icon(name, hue) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "icon");
+  svg.setAttribute("class", `icon hue-${hue || name}`);
   const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
   use.setAttribute("href", `#i-${name}`);
   svg.append(use);
@@ -165,10 +175,10 @@ function renderTools() {
     const open = state.openGroups.has(group.id);
     const heading = document.createElement("button");
     heading.type = "button";
-    heading.className = "tool-group";
+    heading.className = `tool-group hue-${group.id}`;
     heading.setAttribute("aria-expanded", open ? "true" : "false");
     const title = document.createElement("span");
-    title.append(icon(group.icon), document.createTextNode(` ${group.label} (${items.length})`));
+    title.append(icon(group.icon, group.id), document.createTextNode(` ${group.label} (${items.length})`));
     const chevron = document.createElement("span");
     chevron.className = "chevron";
     chevron.textContent = open ? "▾" : "▸";
@@ -188,7 +198,7 @@ function renderTools() {
       button.type = "button";
       button.disabled = !module.available;
       button.className = state.selected.has(module.id) ? "related" : "";
-      button.append(icon(TOOL_ICONS[module.id] || module.category || "dot"));
+      button.append(icon(TOOL_ICONS[module.id] || module.category || "dot", module.category));
       const label = document.createElement("span");
       label.textContent = module.title;
       button.append(label);
@@ -240,7 +250,9 @@ function renderChips() {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = state.selected.has(item.module) ? "chip on" : "chip";
-    chip.append(icon(TOOL_ICONS[item.module] || "dot"));
+    const module = state.modules.find((row) => row.id === item.module);
+    chip.classList.add(`hue-${module ? module.category : "search"}`);
+    chip.append(icon(TOOL_ICONS[item.module] || "dot", module ? module.category : "search"));
     chip.append(document.createTextNode(` ${item.label}: ${item.value}`));
     chip.title = state.selected.has(item.module) ? "Click to skip this tool" : "Click to include this tool";
     chip.addEventListener("click", () => {
@@ -282,7 +294,14 @@ function renderFindings() {
     const tr = document.createElement("tr");
     for (const key of ["kind", "value", "source", "confidence", "evidence"]) {
       const td = document.createElement("td");
-      td.textContent = row[key] || "";
+      if (key === "kind") {
+        const pill = document.createElement("span");
+        pill.className = `kind hue-${kindHue(row.kind)}`;
+        pill.textContent = row.kind || "";
+        td.append(pill);
+      } else {
+        td.textContent = row[key] || "";
+      }
       tr.append(td);
     }
     findingsBody.append(tr);
