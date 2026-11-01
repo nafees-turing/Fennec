@@ -406,6 +406,40 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     archive = api.post("/api/cases/1/runs", json={"module": "archive", "value": "example.com"})
     assert archive.status_code == 201
     assert any(i["kind"] == "url" and "web.archive.org" in i["value"] for i in archive.json()["data"]["findings"])
+    monkeypatch.setattr("app.modules.rdns.lookup_ptr", lambda _ip: ["one.one.one.one"])
+    monkeypatch.setattr(
+        "app.modules.internetdb.fetch_internetdb",
+        lambda _ip: {"hostnames": ["one.one.one.one"], "ports": [53, 443], "cpes": [], "vulns": []},
+    )
+    monkeypatch.setattr(
+        "app.modules.github.fetch_user",
+        lambda _login: {
+            "login": "octocat",
+            "html_url": "https://github.com/octocat",
+            "name": "The Octocat",
+            "blog": "https://github.blog",
+            "email": None,
+            "bio": "GitHub mascot",
+            "company": "GitHub",
+            "location": "San Francisco",
+        },
+    )
+    monkeypatch.setattr(
+        "app.modules.bitcoin.fetch_address",
+        lambda _addr: {"chain_stats": {"funded_txo_sum": 1000, "spent_txo_sum": 200, "tx_count": 3}},
+    )
+    ptr = api.post("/api/cases/1/runs", json={"module": "rdns", "value": "1.1.1.1"})
+    assert ("hostname", "one.one.one.one") in {(i["kind"], i["value"]) for i in ptr.json()["data"]["findings"]}
+    idb = api.post("/api/cases/1/runs", json={"module": "internetdb", "value": "1.1.1.1"})
+    assert ("port", "443") in {(i["kind"], i["value"]) for i in idb.json()["data"]["findings"]}
+    gh = api.post("/api/cases/1/runs", json={"module": "github", "value": "octocat"})
+    assert ("name", "The Octocat") in {(i["kind"], i["value"]) for i in gh.json()["data"]["findings"]}
+    btc = api.post(
+        "/api/cases/1/runs",
+        json={"module": "bitcoin", "value": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"},
+    )
+    assert btc.status_code == 201
+    assert any(i["kind"] == "balance" for i in btc.json()["data"]["findings"])
 
 
 def test_detect_and_smart_phone_lookup(tmp_path):
@@ -417,7 +451,9 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     phone = api.get("/api/detect", params={"q": "+41446681800"})
     assert phone.json()["data"]["detected"] == "phone"
     handle = api.get("/api/detect", params={"q": "@octocat"})
-    assert [item["module"] for item in handle.json()["data"]["matches"]] == ["username", "social"]
+    assert [item["module"] for item in handle.json()["data"]["matches"]] == ["username", "social", "github"]
+    ip = api.get("/api/detect", params={"q": "1.1.1.1"})
+    assert [item["module"] for item in ip.json()["data"]["matches"]] == ["geoip", "rdns", "internetdb"]
     api.post("/api/cases", json={"name": "Auto"})
     run = api.post("/api/cases/1/lookup", json={"value": "+41446681800"})
     assert run.status_code == 201

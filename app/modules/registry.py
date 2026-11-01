@@ -2,14 +2,18 @@ from app.modules.base import ModuleResult, ModuleSpec
 from app.modules import (
     address,
     archive,
+    bitcoin,
     certs,
     company,
     domain,
     email,
     geoip,
+    github,
+    internetdb,
     metadata,
     name,
     phone,
+    rdns,
     social,
     username,
 )
@@ -19,6 +23,7 @@ CATEGORIES = [
     ("social", "Social"),
     ("addresses", "Addresses"),
     ("network", "Network"),
+    ("crypto", "Crypto"),
     ("files", "Files"),
 ]
 
@@ -30,12 +35,16 @@ _SPECS = {
         username.SPEC,
         phone.SPEC,
         social.SPEC,
+        github.SPEC,
         address.SPEC,
         company.SPEC,
         domain.SPEC,
         geoip.SPEC,
+        rdns.SPEC,
+        internetdb.SPEC,
         certs.SPEC,
         archive.SPEC,
+        bitcoin.SPEC,
         metadata.SPEC,
     ]
 }
@@ -45,12 +54,16 @@ _RUNNERS = {
     "username": username.run,
     "phone": phone.run,
     "social": social.run,
+    "github": github.run,
     "address": address.run,
     "company": company.run,
     "domain": domain.run,
     "geoip": geoip.run,
+    "rdns": rdns.run,
+    "internetdb": internetdb.run,
     "certs": certs.run,
     "archive": archive.run,
+    "bitcoin": bitcoin.run,
     "metadata": metadata.run,
 }
 

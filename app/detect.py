@@ -2,6 +2,7 @@ import ipaddress
 import re
 from urllib.parse import urlparse
 
+from app.modules.bitcoin import BTC
 from app.modules.domain import HOST, normalize_host
 
 EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
@@ -51,7 +52,11 @@ def classify(raw: str) -> dict:
         ipaddress.ip_address(text)
         return {
             "detected": "ip",
-            "matches": [_match("geoip", text, "IP network", "ip")],
+            "matches": [
+                _match("geoip", text, "IP network", "ip"),
+                _match("rdns", text, "Reverse DNS", "ip"),
+                _match("internetdb", text, "InternetDB", "ip"),
+            ],
         }
     except ValueError:
         pass
@@ -98,7 +103,14 @@ def classify(raw: str) -> dict:
             "matches": [
                 _match("username", handle, "Username", "username"),
                 _match("social", handle, "Social profiles", "username"),
+                _match("github", handle, "GitHub", "username"),
             ],
+        }
+
+    if BTC.fullmatch(text):
+        return {
+            "detected": "bitcoin",
+            "matches": [_match("bitcoin", text, "Bitcoin", "wallet")],
         }
 
     return {"detected": None, "matches": []}

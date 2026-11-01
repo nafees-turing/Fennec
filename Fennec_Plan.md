@@ -186,7 +186,9 @@ Limits to show in the UI, because the library's own docs say this:
 - IP network facts from NetWatch’s local style: scope via `ipaddress`, ASN/org from DB-IP ASN Lite if that mmdb is on disk, country only if a GeoIP mmdb is present. No remote IP API.
 - Company names through Wikidata: one search, one entity fetch.
 
-Still later: subdomain helper, dark case-file theme.
+- Reverse DNS, Shodan InternetDB (one IP), GitHub user (one call), Bitcoin via mempool.space.
+
+Still later: subdomain helper (too many hosts), dark case-file theme.
 
 Breach APIs that need a paid key (including Have I Been Pwned) stay optional plugins and are not part of the default milestones.
 

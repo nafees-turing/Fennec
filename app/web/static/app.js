@@ -112,6 +112,7 @@ const GROUPS = [
   { id: "social", label: "Social" },
   { id: "addresses", label: "Addresses" },
   { id: "network", label: "Network" },
+  { id: "crypto", label: "Crypto" },
   { id: "files", label: "Files" },
 ];
 
