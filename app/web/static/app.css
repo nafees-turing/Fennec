@@ -18,7 +18,16 @@
   --hue-crypto: #fbbf24;
   --hue-files: #22d3ee;
   --hue-search: #93c5fd;
-  --sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --case-0: #60a5fa;
+  --case-1: #34d399;
+  --case-2: #f472b6;
+  --case-3: #fbbf24;
+  --case-4: #a78bfa;
+  --case-5: #fb923c;
+  --case-6: #22d3ee;
+  --case-7: #f87171;
+  --sans: "Source Sans 3", "Segoe UI", sans-serif;
+  --display: Outfit, "Source Sans 3", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -196,8 +205,25 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip.on { background: #163056; color: #dbeafe; border-color: #1d4ed8; }
 .chip.miss { cursor: default; }
 .workspace { padding: 1.2rem 1.6rem 2.4rem; min-width: 0; }
-h1 { margin: 0.1rem 0 0; font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; }
+h1 {
+  margin: 0.1rem 0 0;
+  font-size: 1.7rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  font-family: var(--display);
+  color: var(--case, var(--text));
+}
+.brand strong, .workspace h2, .tool-group, .rail-block h2 {
+  font-family: var(--display);
+}
 .workspace h2 { font-size: 0.95rem; margin: 1.1rem 0 0.5rem; font-weight: 650; }
+.nav-list button.tinted { color: var(--case); }
+.nav-list button.tinted .icon { color: var(--case); }
+.nav-list button.tinted.active {
+  background: color-mix(in srgb, var(--case) 18%, var(--panel));
+  border-color: color-mix(in srgb, var(--case) 55%, var(--line));
+  color: var(--case);
+}
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.3rem; margin-top: 0.5rem; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.5rem 0.4rem; vertical-align: top; }

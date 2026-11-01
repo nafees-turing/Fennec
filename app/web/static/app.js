@@ -42,6 +42,16 @@ function loadOpenGroups() {
   return new Set(["basic"]);
 }
 
+function caseHue(id) {
+  const index = Math.abs(Number(id) || 0) % 8;
+  return `var(--case-${index})`;
+}
+
+function tint(node, id) {
+  node.style.setProperty("--case", caseHue(id));
+  node.classList.add("tinted");
+}
+
 function persist() {
   if (state.caseId) localStorage.setItem("fennec.caseId", String(state.caseId));
   localStorage.setItem("fennec.groups", JSON.stringify([...state.openGroups]));
@@ -64,8 +74,9 @@ async function loadCases(selectId) {
     const button = document.createElement("button");
     button.type = "button";
     button.title = item.name;
-    button.className = item.id === open ? "active" : "";
-    button.append(icon("case", "case"));
+    button.className = item.id === open ? "active tinted" : "tinted";
+    tint(button, item.id);
+    button.append(icon("case"));
     const label = document.createElement("span");
     label.textContent = item.name;
     button.append(label);
@@ -91,7 +102,10 @@ async function openCase(id) {
   document.querySelector("#export-html").href = `/api/cases/${id}/export.html`;
   document.querySelector("#export-pdf").href = `/api/cases/${id}/export.pdf`;
   document.querySelector("#case-kicker").textContent = `Case ${caseFile.id}`;
-  document.querySelector("#case-title").textContent = caseFile.name;
+  const title = document.querySelector("#case-title");
+  title.textContent = caseFile.name;
+  tint(title, caseFile.id);
+  tint(document.querySelector(".workspace"), caseFile.id);
   document.querySelector("#case-notes").textContent = caseFile.notes || "";
   document.querySelector("#case-stats").textContent =
     `${caseFile.findings.length} findings · ${caseFile.runs.length} lookups · ${ (caseFile.links || []).length } links`;
@@ -105,7 +119,9 @@ async function openCase(id) {
 function paintCaseList() {
   api("/api/cases").then((cases) => {
     [...caseList.querySelectorAll("button")].forEach((button, index) => {
-      button.classList.toggle("active", cases[index] && cases[index].id === state.caseId);
+      if (!cases[index]) return;
+      button.classList.toggle("active", cases[index].id === state.caseId);
+      tint(button, cases[index].id);
     });
   });
 }
