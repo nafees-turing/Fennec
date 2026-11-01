@@ -507,6 +507,22 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     assert ("url", "https://gitlab.com/ada") in {(i["kind"], i["value"]) for i in gl.json()["data"]["findings"]}
     kb = api.post("/api/cases/1/runs", json={"module": "keybase", "value": "ada"})
     assert kb.status_code == 201
+    monkeypatch.setattr("app.modules.npm.fetch_user", lambda _u: {"name": "ada", "email": "ada@npm.test", "homepage": "https://example.com"})
+    monkeypatch.setattr("app.modules.dockerhub.fetch_user", lambda _u: {"username": "ada", "full_name": "Ada", "location": "", "company": ""})
+    monkeypatch.setattr("app.modules.hackernews.fetch_user", lambda _u: {"id": "ada", "karma": 1, "about": "hi"})
+    monkeypatch.setattr("app.modules.reddit.fetch_user", lambda _u: {"name": "ada", "subreddit": {"title": "Ada", "public_description": ""}, "total_karma": 2})
+    monkeypatch.setattr("app.modules.wikipedia.fetch_summary", lambda _t: {"title": "Ada Lovelace", "description": "mathematician", "extract": "Ada wrote notes.", "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Ada_Lovelace"}}})
+    monkeypatch.setattr("app.modules.pgp.fetch_key", lambda _e: {"found": True, "text": "BEGIN"})
+    monkeypatch.setattr("app.modules.otx.fetch_indicator", lambda _ip: {"pulse_info": {"count": 3}, "reputation": 0, "country_name": "Australia", "asn": "AS13335"})
+    assert api.post("/api/cases/1/runs", json={"module": "npm", "value": "ada"}).status_code == 201
+    assert api.post("/api/cases/1/runs", json={"module": "dockerhub", "value": "ada"}).status_code == 201
+    assert api.post("/api/cases/1/runs", json={"module": "hackernews", "value": "ada"}).status_code == 201
+    assert api.post("/api/cases/1/runs", json={"module": "reddit", "value": "ada"}).status_code == 201
+    wiki = api.post("/api/cases/1/runs", json={"module": "wikipedia", "value": "Ada Lovelace"})
+    assert ("url", "https://en.wikipedia.org/wiki/Ada_Lovelace") in {(i["kind"], i["value"]) for i in wiki.json()["data"]["findings"]}
+    assert api.post("/api/cases/1/runs", json={"module": "pgp", "value": "ada@example.com"}).status_code == 201
+    otx = api.post("/api/cases/1/runs", json={"module": "otx", "value": "1.1.1.1"})
+    assert ("country", "Australia") in {(i["kind"], i["value"]) for i in otx.json()["data"]["findings"]}
 
 
 def test_detect_and_smart_phone_lookup(tmp_path):
@@ -514,7 +530,7 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     email = api.get("/api/detect", params={"q": "Ada@Example.com"})
     assert email.json()["data"]["detected"] == "email"
     modules = [item["module"] for item in email.json()["data"]["matches"]]
-    assert modules == ["email", "domain", "gravatar"]
+    assert modules == ["email", "domain", "gravatar", "pgp"]
     phone = api.get("/api/detect", params={"q": "+41446681800"})
     assert phone.json()["data"]["detected"] == "phone"
     handle = api.get("/api/detect", params={"q": "@octocat"})
@@ -524,6 +540,10 @@ def test_detect_and_smart_phone_lookup(tmp_path):
         "github",
         "gitlab",
         "keybase",
+        "npm",
+        "dockerhub",
+        "hackernews",
+        "reddit",
     ]
     ip = api.get("/api/detect", params={"q": "1.1.1.1"})
     assert [item["module"] for item in ip.json()["data"]["matches"]] == [
@@ -532,6 +552,7 @@ def test_detect_and_smart_phone_lookup(tmp_path):
         "internetdb",
         "bgp",
         "greynoise",
+        "otx",
     ]
     api.post("/api/cases", json={"name": "Auto"})
     run = api.post("/api/cases/1/lookup", json={"value": "+41446681800"})

@@ -6,10 +6,10 @@ The long survey lives in [osint-platforms.md](osint-platforms.md). Fennec only s
 
 | Group | Tools | Survey analogue |
 |-------|--------|-----------------|
-| **Basic** | Email, Name, Person, Username, Phone | holehe; local name fact; Wikidata person (one search + one fetch); small profile URLs; phonenumbers local fields |
-| **Social** | Social profiles, GitHub, GitLab, Keybase, Gravatar | Existence check plus one-call profile APIs |
+| **Basic** | Email, Name, Person, Wikipedia, Username, Phone, PGP | holehe; local name; Wikidata; Wikipedia summary; phonenumbers; keys.openpgp.org |
+| **Social** | Social, GitHub, GitLab, Keybase, npm, Docker Hub, HN, Reddit, Gravatar | One-call profile APIs |
 | **Addresses** | Address, Company, Sanctions, Geocode | Postal line; Wikidata org; OpenSanctions; one Nominatim search |
-| **Network** | Domain, IP, Reverse DNS, InternetDB, BGP, GreyNoise, Certificates, security.txt, Web archive | DNS/RDAP; PTR; InternetDB; BGPView; GreyNoise Community; crt.sh; RFC 9116; Wayback |
+| **Network** | Domain, IP, Reverse DNS, InternetDB, BGP, GreyNoise, OTX, Certificates, security.txt, Web archive | DNS/RDAP; PTR; InternetDB; BGPView; GreyNoise; AlienVault OTX; crt.sh; RFC 9116; Wayback |
 | **Crypto** | Bitcoin, Ethereum | mempool.space; Blockscout |
 | **Files** | File metadata | Pillow EXIF/hash. ExifTool remains optional later |
 

@@ -41,6 +41,7 @@ def classify(raw: str) -> dict:
             _match("email", email, "Email", "email"),
             _match("domain", host, "Mailbox domain", "domain"),
             _match("gravatar", email, "Gravatar", "email"),
+            _match("pgp", email, "PGP", "email"),
         ]
         return {"detected": "email", "matches": matches}
 
@@ -60,6 +61,7 @@ def classify(raw: str) -> dict:
                 _match("internetdb", text, "InternetDB", "ip"),
                 _match("bgp", text, "BGP", "ip"),
                 _match("greynoise", text, "GreyNoise", "ip"),
+                _match("otx", text, "OTX", "ip"),
             ],
         }
     except ValueError:
@@ -108,6 +110,7 @@ def classify(raw: str) -> dict:
                 _match("name", text, "Person name", "name"),
                 _match("person", text, "Wikidata person", "name"),
                 _match("sanctions", text, "Sanctions", "name"),
+                _match("wikipedia", text, "Wikipedia", "name"),
             ],
         }
 
@@ -121,6 +124,10 @@ def classify(raw: str) -> dict:
                 _match("github", handle, "GitHub", "username"),
                 _match("gitlab", handle, "GitLab", "username"),
                 _match("keybase", handle, "Keybase", "username"),
+                _match("npm", handle, "npm", "username"),
+                _match("dockerhub", handle, "Docker Hub", "username"),
+                _match("hackernews", handle, "Hacker News", "username"),
+                _match("reddit", handle, "Reddit", "username"),
             ],
         }
 
