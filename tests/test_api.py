@@ -372,6 +372,8 @@ def test_home_shell(tmp_path):
     assert response.status_code == 200
     assert "Fennec" in response.text
     assert "/static/favicon.svg" in response.text
+    assert 'id="tool-list"' in response.text
+    assert 'id="inspector"' in response.text
     assert "/static/app.js" in response.text
 
 

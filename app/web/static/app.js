@@ -1,7 +1,14 @@
-const state = { caseId: null, modules: [], findings: [], filter: "all" };
+const state = {
+  caseId: Number(localStorage.getItem("fennec.caseId")) || null,
+  toolId: localStorage.getItem("fennec.toolId") || "email",
+  modules: [],
+  findings: [],
+  filter: "all",
+};
 
 const notice = document.querySelector("#notice");
 const caseList = document.querySelector("#case-list");
+const toolList = document.querySelector("#tool-list");
 const findingsBody = document.querySelector("#findings");
 const runsList = document.querySelector("#runs");
 
@@ -23,56 +30,159 @@ function setNotice(text) {
   notice.textContent = text || "";
 }
 
+function currentTool() {
+  return state.modules.find((item) => item.id === state.toolId) || state.modules[0];
+}
+
+function persist() {
+  if (state.caseId) localStorage.setItem("fennec.caseId", String(state.caseId));
+  if (state.toolId) localStorage.setItem("fennec.toolId", state.toolId);
+}
+
 async function loadCases(selectId) {
   const cases = await api("/api/cases");
   caseList.replaceChildren();
   if (cases.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.textContent = "No cases yet.";
+    empty.textContent = "None yet.";
     caseList.append(empty);
+    state.caseId = null;
+    showWorkspace(false);
     return cases;
   }
+  const open = selectId || state.caseId || cases[0].id;
   for (const item of cases) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = item.name;
-    button.className = item.id === state.caseId ? "active" : "";
+    button.className = item.id === open ? "active" : "";
     button.addEventListener("click", () => openCase(item.id));
     caseList.append(button);
   }
-  const open = selectId || state.caseId || cases[0].id;
-  if (open && open !== state.caseId) await openCase(open);
+  if (open) await openCase(open);
   return cases;
+}
+
+function showWorkspace(open) {
+  document.querySelector("#welcome").hidden = open;
+  document.querySelector("#results").hidden = !open;
+  document.querySelector("#export-links").hidden = !open;
+  document.querySelector("#inspector").hidden = !open;
 }
 
 async function openCase(id) {
   state.caseId = id;
+  persist();
   const caseFile = await api(`/api/cases/${id}`);
-  document.querySelector("#welcome").hidden = true;
-  document.querySelector("#results").hidden = false;
-  document.querySelector("#export-links").hidden = false;
+  showWorkspace(true);
   document.querySelector("#export-json").href = `/api/cases/${id}/export`;
   document.querySelector("#export-html").href = `/api/cases/${id}/export.html`;
   document.querySelector("#export-pdf").href = `/api/cases/${id}/export.pdf`;
-  document.querySelector("#case-kicker").textContent = `Case ${caseFile.id}`;
+  document.querySelector("#case-kicker").textContent = `Case ${caseFile.id} · keep adding lookups`;
   document.querySelector("#case-title").textContent = caseFile.name;
-  document.querySelector("#case-notes").textContent = caseFile.notes || "";
+  document.querySelector("#case-notes").textContent = caseFile.notes || "Selected. Choose a tool in the sidebar.";
   state.findings = caseFile.findings;
   renderFindings();
   renderRuns(caseFile.runs);
   renderLinks(caseFile.links || []);
-  renderModules();
-  highlightCase();
+  paintCaseList();
+  renderInspector();
 }
 
-function highlightCase() {
+function paintCaseList() {
+  const buttons = [...caseList.querySelectorAll("button")];
   api("/api/cases").then((cases) => {
-    const buttons = [...caseList.querySelectorAll("button")];
     buttons.forEach((button, index) => {
       button.classList.toggle("active", cases[index] && cases[index].id === state.caseId);
     });
   });
+}
+
+function renderTools() {
+  toolList.replaceChildren();
+  for (const module of state.modules) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.disabled = !module.available;
+    button.className = module.id === state.toolId ? "active" : "";
+    const label = document.createElement("span");
+    label.textContent = module.title;
+    button.append(label);
+    if (module.network) {
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = "net";
+      button.append(tag);
+    }
+    button.title = module.available ? module.summary : module.reason;
+    button.addEventListener("click", () => {
+      state.toolId = module.id;
+      persist();
+      renderTools();
+      renderInspector();
+    });
+    toolList.append(button);
+  }
+}
+
+function renderInspector() {
+  const module = currentTool();
+  const form = document.querySelector("#tool-form");
+  form.replaceChildren();
+  if (!module) return;
+  document.querySelector("#tool-kicker").textContent = module.network ? "Slow network tool" : "Local tool";
+  document.querySelector("#tool-title").textContent = module.title;
+  document.querySelector("#tool-summary").textContent = module.available ? module.summary : module.reason;
+  if (!module.available || !state.caseId) return;
+
+  const submit = document.createElement("button");
+  submit.type = "submit";
+  submit.textContent = "Add to case";
+  let payload;
+  if (module.input_kind === "file") {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.required = true;
+    input.setAttribute("aria-label", module.input_label);
+    form.append(input, submit);
+    payload = () => {
+      const data = new FormData();
+      data.append("module", module.id);
+      data.append("file", input.files[0]);
+      return { body: data };
+    };
+  } else {
+    const input = document.createElement("input");
+    input.name = "value";
+    input.required = true;
+    input.placeholder = module.placeholder;
+    input.setAttribute("aria-label", module.input_label);
+    form.append(input, submit);
+    payload = () => ({ body: JSON.stringify({ module: module.id, value: input.value }) });
+  }
+
+  form.onsubmit = async (event) => {
+    event.preventDefault();
+    if (!state.caseId) {
+      setNotice("Select a case first.");
+      return;
+    }
+    submit.disabled = true;
+    document.body.classList.add("busy");
+    setNotice(module.network ? "Lookup running. Network tools stay slow on purpose." : "");
+    try {
+      await api(`/api/cases/${state.caseId}/runs`, { method: "POST", ...payload() });
+      form.reset();
+      setNotice("Added to this case.");
+      await openCase(state.caseId);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      submit.disabled = false;
+      document.body.classList.remove("busy");
+    }
+  };
 }
 
 function renderFindings() {
@@ -95,7 +205,7 @@ function renderFindings() {
   }
   if (!rows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = '<td class="empty" colspan="5">No findings yet.</td>';
+    tr.innerHTML = '<td class="empty" colspan="5">Nothing on this case yet. Use a tool in the sidebar.</td>';
     findingsBody.append(tr);
     return;
   }
@@ -115,7 +225,7 @@ function renderRuns(rows) {
   if (!rows.length) {
     const li = document.createElement("li");
     li.className = "empty";
-    li.textContent = "No runs yet.";
+    li.textContent = "No lookups yet.";
     runsList.append(li);
     return;
   }
@@ -148,84 +258,16 @@ function renderLinks(rows) {
   }
 }
 
-function renderModules() {
-  const host = document.querySelector("#modules");
-  host.hidden = state.caseId == null;
-  host.replaceChildren();
-  for (const module of state.modules) {
-    const card = document.createElement("article");
-    card.className = module.available ? "module" : "module locked";
-    const title = document.createElement("h3");
-    title.textContent = `${module.title} · ${module.milestone}`;
-    const summary = document.createElement("small");
-    summary.textContent = module.available ? module.summary : module.reason;
-    card.append(title, summary);
-    if (module.available) {
-      const form = document.createElement("form");
-      const button = document.createElement("button");
-      button.type = "submit";
-      button.textContent = "Run";
-      let payload;
-      if (module.input_kind === "file") {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.name = "file";
-        input.required = true;
-        input.setAttribute("aria-label", module.input_label);
-        form.append(input, button);
-        payload = () => {
-          const data = new FormData();
-          data.append("module", module.id);
-          data.append("file", input.files[0]);
-          return { body: data };
-        };
-      } else {
-        const input = document.createElement("input");
-        input.name = "value";
-        input.required = true;
-        input.placeholder = module.placeholder;
-        input.setAttribute("aria-label", module.input_label);
-        form.append(input, button);
-        payload = () => ({
-          body: JSON.stringify({ module: module.id, value: input.value }),
-        });
-      }
-      form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        button.disabled = true;
-        document.body.classList.add("busy");
-        const wait = module.network
-          ? "Network scan running slowly (few connections, then a cooldown)."
-          : "";
-        setNotice(wait);
-        try {
-          await api(`/api/cases/${state.caseId}/runs`, { method: "POST", ...payload() });
-          form.reset();
-          setNotice("");
-          await openCase(state.caseId);
-        } catch (error) {
-          setNotice(error.message);
-        } finally {
-          button.disabled = false;
-          document.body.classList.remove("busy");
-        }
-      });
-      card.append(form);
-    }
-    host.append(card);
-  }
-}
-
 document.querySelector("#new-case").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   try {
     const created = await api("/api/cases", {
       method: "POST",
-      body: JSON.stringify({ name: form.name.value, notes: form.notes.value }),
+      body: JSON.stringify({ name: form.name.value, notes: "" }),
     });
     form.reset();
-    setNotice("");
+    setNotice("Case open. Add lookups with the tools on the left.");
     await loadCases(created.id);
   } catch (error) {
     setNotice(error.message);
@@ -234,7 +276,11 @@ document.querySelector("#new-case").addEventListener("submit", async (event) => 
 
 async function boot() {
   state.modules = await api("/api/modules");
-  await loadCases();
+  if (!state.modules.some((item) => item.id === state.toolId)) {
+    state.toolId = (state.modules.find((item) => item.available) || state.modules[0] || {}).id;
+  }
+  renderTools();
+  await loadCases(state.caseId);
 }
 
 boot().catch((error) => setNotice(error.message));

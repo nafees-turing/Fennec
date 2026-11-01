@@ -19,22 +19,31 @@
           <p>Local OSINT</p>
         </div>
       </div>
-      <form id="new-case" class="new-case">
-        <input name="name" placeholder="New case name" required maxlength="120">
-        <input name="notes" placeholder="Optional notes">
-        <button type="submit">Create</button>
-      </form>
-      <nav id="case-list" class="case-list" aria-label="Cases"></nav>
+
+      <section class="rail-block">
+        <h2>Cases</h2>
+        <form id="new-case" class="new-case">
+          <input name="name" placeholder="New case" required maxlength="120" aria-label="New case name">
+          <button type="submit">Add</button>
+        </form>
+        <nav id="case-list" class="nav-list" aria-label="Cases"></nav>
+      </section>
+
+      <section class="rail-block">
+        <h2>Tools</h2>
+        <p class="hint">Pick a case, then a tool. Results stay on that case.</p>
+        <nav id="tool-list" class="nav-list tools" aria-label="Tools"></nav>
+      </section>
     </aside>
+
     <main class="workspace">
       <header class="top">
         <div>
-          <p class="eyebrow" id="case-kicker">No case open</p>
-          <h1 id="case-title">Choose or create a case</h1>
+          <p class="eyebrow" id="case-kicker">No case selected</p>
+          <h1 id="case-title">Select a case to continue</h1>
           <p id="case-notes" class="notes"></p>
         </div>
         <div class="top-actions">
-          <p class="legal">Public sources only. Email uses a small slow site set. Phone and file metadata stay on this machine.</p>
           <p id="export-links" hidden>
             <a id="export-json" href="#">JSON</a>
             <a id="export-html" href="#">HTML</a>
@@ -42,10 +51,20 @@
           </p>
         </div>
       </header>
-      <section id="welcome" class="welcome">
-        <p>Create a case, then run a module. Company uses one Wikidata lookup. GeoIP reads a local mmdb only. Export JSON, HTML, or PDF.</p>
+
+      <section id="inspector" class="inspector" hidden>
+        <div>
+          <p class="eyebrow" id="tool-kicker">Tool</p>
+          <h2 id="tool-title">Choose a tool</h2>
+          <p id="tool-summary" class="notes"></p>
+        </div>
+        <form id="tool-form" class="tool-form"></form>
       </section>
-      <section id="modules" class="modules" hidden></section>
+
+      <section id="welcome" class="welcome">
+        <p>Create or select a case in the sidebar. Tools appear once, next to the cases. Each lookup is added to the open case so you can keep going later.</p>
+      </section>
+
       <section class="split" id="results" hidden>
         <div>
           <div class="row-head">
@@ -61,8 +80,8 @@
             </table>
           </div>
         </div>
-        <div>
-          <h2>Runs</h2>
+        <div class="side-col">
+          <h2>History</h2>
           <ol id="runs" class="runs"></ol>
           <h2>Links</h2>
           <ul id="links" class="runs"></ul>
