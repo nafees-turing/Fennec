@@ -59,6 +59,7 @@ def classify(raw: str) -> dict:
                 _match("rdns", text, "Reverse DNS", "ip"),
                 _match("internetdb", text, "InternetDB", "ip"),
                 _match("bgp", text, "BGP", "ip"),
+                _match("greynoise", text, "GreyNoise", "ip"),
             ],
         }
     except ValueError:
@@ -78,6 +79,7 @@ def classify(raw: str) -> dict:
                 _match("domain", host, "Domain", "domain"),
                 _match("certs", host, "Certificates", "domain"),
                 _match("archive", host, "Web archive", "domain"),
+                _match("securitytxt", host, "security.txt", "domain"),
             ],
         }
 
@@ -93,7 +95,10 @@ def classify(raw: str) -> dict:
     if "," in text or STREET_HINT.search(text):
         return {
             "detected": "address",
-            "matches": [_match("address", text, "Address", "address")],
+            "matches": [
+                _match("address", text, "Address", "address"),
+                _match("geocode", text, "Geocode", "address"),
+            ],
         }
 
     if " " in text:
@@ -114,6 +119,8 @@ def classify(raw: str) -> dict:
                 _match("username", handle, "Username", "username"),
                 _match("social", handle, "Social profiles", "username"),
                 _match("github", handle, "GitHub", "username"),
+                _match("gitlab", handle, "GitLab", "username"),
+                _match("keybase", handle, "Keybase", "username"),
             ],
         }
 

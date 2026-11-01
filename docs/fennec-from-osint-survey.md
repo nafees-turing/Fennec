@@ -7,9 +7,9 @@ The long survey lives in [osint-platforms.md](osint-platforms.md). Fennec only s
 | Group | Tools | Survey analogue |
 |-------|--------|-----------------|
 | **Basic** | Email, Name, Person, Username, Phone | holehe; local name fact; Wikidata person (one search + one fetch); small profile URLs; phonenumbers local fields |
-| **Social** | Social profiles, GitHub, Gravatar | Six-site existence check; one GitHub user call; one Gravatar JSON call |
-| **Addresses** | Address, Company, Sanctions | Postal line; Wikidata org; one OpenSanctions search |
-| **Network** | Domain, IP, Reverse DNS, InternetDB, BGP, Certificates, Web archive | DNS/RDAP; local ASN; PTR; InternetDB; BGPView; crt.sh; Wayback |
+| **Social** | Social profiles, GitHub, GitLab, Keybase, Gravatar | Existence check plus one-call profile APIs |
+| **Addresses** | Address, Company, Sanctions, Geocode | Postal line; Wikidata org; OpenSanctions; one Nominatim search |
+| **Network** | Domain, IP, Reverse DNS, InternetDB, BGP, GreyNoise, Certificates, security.txt, Web archive | DNS/RDAP; PTR; InternetDB; BGPView; GreyNoise Community; crt.sh; RFC 9116; Wayback |
 | **Crypto** | Bitcoin, Ethereum | mempool.space; Blockscout |
 | **Files** | File metadata | Pillow EXIF/hash. ExifTool remains optional later |
 

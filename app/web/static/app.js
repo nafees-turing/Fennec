@@ -63,9 +63,12 @@ async function loadCases(selectId) {
   for (const item of cases) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = item.name;
     button.title = item.name;
     button.className = item.id === open ? "active" : "";
+    button.append(icon("case"));
+    const label = document.createElement("span");
+    label.textContent = item.name;
+    button.append(label);
     button.addEventListener("click", () => openCase(item.id));
     caseList.append(button);
   }
@@ -108,13 +111,51 @@ function paintCaseList() {
 }
 
 const GROUPS = [
-  { id: "basic", label: "Basic" },
-  { id: "social", label: "Social" },
-  { id: "addresses", label: "Addresses" },
-  { id: "network", label: "Network" },
-  { id: "crypto", label: "Crypto" },
-  { id: "files", label: "Files" },
+  { id: "basic", label: "Basic", icon: "basic" },
+  { id: "social", label: "Social", icon: "social" },
+  { id: "addresses", label: "Addresses", icon: "addresses" },
+  { id: "network", label: "Network", icon: "network" },
+  { id: "crypto", label: "Crypto", icon: "crypto" },
+  { id: "files", label: "Files", icon: "files" },
 ];
+
+const TOOL_ICONS = {
+  email: "email",
+  phone: "phone",
+  name: "basic",
+  person: "basic",
+  username: "basic",
+  social: "social",
+  github: "social",
+  gitlab: "social",
+  keybase: "social",
+  gravatar: "social",
+  address: "addresses",
+  company: "addresses",
+  sanctions: "addresses",
+  geocode: "addresses",
+  domain: "network",
+  geoip: "network",
+  rdns: "network",
+  internetdb: "network",
+  bgp: "network",
+  greynoise: "network",
+  certs: "network",
+  securitytxt: "network",
+  archive: "network",
+  bitcoin: "crypto",
+  ethereum: "crypto",
+  metadata: "files",
+};
+
+function icon(name) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "icon");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
 
 function renderTools() {
   toolList.replaceChildren();
@@ -127,7 +168,7 @@ function renderTools() {
     heading.className = "tool-group";
     heading.setAttribute("aria-expanded", open ? "true" : "false");
     const title = document.createElement("span");
-    title.textContent = `${group.label} (${items.length})`;
+    title.append(icon(group.icon), document.createTextNode(` ${group.label} (${items.length})`));
     const chevron = document.createElement("span");
     chevron.className = "chevron";
     chevron.textContent = open ? "▾" : "▸";
@@ -147,6 +188,7 @@ function renderTools() {
       button.type = "button";
       button.disabled = !module.available;
       button.className = state.selected.has(module.id) ? "related" : "";
+      button.append(icon(TOOL_ICONS[module.id] || module.category || "dot"));
       const label = document.createElement("span");
       label.textContent = module.title;
       button.append(label);
@@ -198,7 +240,8 @@ function renderChips() {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = state.selected.has(item.module) ? "chip on" : "chip";
-    chip.textContent = `${item.label}: ${item.value}`;
+    chip.append(icon(TOOL_ICONS[item.module] || "dot"));
+    chip.append(document.createTextNode(` ${item.label}: ${item.value}`));
     chip.title = state.selected.has(item.module) ? "Click to skip this tool" : "Click to include this tool";
     chip.addEventListener("click", () => {
       if (state.selected.has(item.module)) state.selected.delete(item.module);

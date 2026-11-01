@@ -470,6 +470,43 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     assert eth.status_code == 201
     person = api.post("/api/cases/1/runs", json={"module": "person", "value": "Ada Lovelace"})
     assert ("wikidata", "Q7259") in {(i["kind"], i["value"]) for i in person.json()["data"]["findings"]}
+    monkeypatch.setattr(
+        "app.modules.greynoise.fetch_community",
+        lambda _ip: {"status": 200, "body": {"classification": "benign", "riot": True, "name": "Cloudflare", "link": "https://viz.greynoise.io/riot/1.1.1.1"}},
+    )
+    monkeypatch.setattr(
+        "app.modules.geocode.search_place",
+        lambda _q: [{"display_name": "Baker Street, London", "lat": "51.52", "lon": "-0.16", "type": "road", "class": "highway"}],
+    )
+    monkeypatch.setattr(
+        "app.modules.securitytxt.fetch_securitytxt",
+        lambda _h: "Contact: mailto:security@example.com\nPolicy: https://example.com/security\n",
+    )
+    monkeypatch.setattr(
+        "app.modules.gitlab.fetch_user",
+        lambda _u: {"username": "ada", "name": "Ada", "web_url": "https://gitlab.com/ada", "location": ""},
+    )
+    monkeypatch.setattr(
+        "app.modules.keybase.fetch_user",
+        lambda _u: {
+            "status": {"code": 0},
+            "them": {
+                "basics": {"username": "ada"},
+                "profile": {"full_name": "Ada L", "location": "", "bio": ""},
+                "proofs_summary": {"all": [{"nametag": "ada", "proof_type": "github", "service_url": "https://github.com/ada"}]},
+            },
+        },
+    )
+    gn = api.post("/api/cases/1/runs", json={"module": "greynoise", "value": "1.1.1.1"})
+    assert ("org", "Cloudflare") in {(i["kind"], i["value"]) for i in gn.json()["data"]["findings"]}
+    geo = api.post("/api/cases/1/runs", json={"module": "geocode", "value": "221B Baker Street, London"})
+    assert ("coords", "51.52,-0.16") in {(i["kind"], i["value"]) for i in geo.json()["data"]["findings"]}
+    st = api.post("/api/cases/1/runs", json={"module": "securitytxt", "value": "example.com"})
+    assert ("email", "security@example.com") in {(i["kind"], i["value"]) for i in st.json()["data"]["findings"]}
+    gl = api.post("/api/cases/1/runs", json={"module": "gitlab", "value": "ada"})
+    assert ("url", "https://gitlab.com/ada") in {(i["kind"], i["value"]) for i in gl.json()["data"]["findings"]}
+    kb = api.post("/api/cases/1/runs", json={"module": "keybase", "value": "ada"})
+    assert kb.status_code == 201
 
 
 def test_detect_and_smart_phone_lookup(tmp_path):
@@ -481,9 +518,21 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     phone = api.get("/api/detect", params={"q": "+41446681800"})
     assert phone.json()["data"]["detected"] == "phone"
     handle = api.get("/api/detect", params={"q": "@octocat"})
-    assert [item["module"] for item in handle.json()["data"]["matches"]] == ["username", "social", "github"]
+    assert [item["module"] for item in handle.json()["data"]["matches"]] == [
+        "username",
+        "social",
+        "github",
+        "gitlab",
+        "keybase",
+    ]
     ip = api.get("/api/detect", params={"q": "1.1.1.1"})
-    assert [item["module"] for item in ip.json()["data"]["matches"]] == ["geoip", "rdns", "internetdb", "bgp"]
+    assert [item["module"] for item in ip.json()["data"]["matches"]] == [
+        "geoip",
+        "rdns",
+        "internetdb",
+        "bgp",
+        "greynoise",
+    ]
     api.post("/api/cases", json={"name": "Auto"})
     run = api.post("/api/cases/1/lookup", json={"value": "+41446681800"})
     assert run.status_code == 201
