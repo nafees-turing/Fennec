@@ -629,6 +629,9 @@ def test_home_shell(tmp_path):
     html = api.get("/settings")
     assert html.status_code == 200
     assert 'id="settings-form"' in html.text
+    home = api.get("/")
+    assert 'id="settings-link"' in home.text
+    assert "#i-settings" in home.text
     assert "/static/app.js" in response.text
 
 
