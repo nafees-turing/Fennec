@@ -188,7 +188,7 @@ Limits to show in the UI, because the library's own docs say this:
 
 - Reverse DNS, Shodan InternetDB (one IP), GitHub user (one call), Bitcoin via mempool.space.
 
-Still later: subdomain helper (too many hosts), dark case-file theme.
+Still later: more **person** profile APIs if they stay one-request. Vessels, aircraft, AIS, and ADS-B are excluded.
 
 Breach APIs that need a paid key (including Have I Been Pwned) stay optional plugins and are not part of the default milestones.
 

@@ -523,6 +523,14 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     assert api.post("/api/cases/1/runs", json={"module": "pgp", "value": "ada@example.com"}).status_code == 201
     otx = api.post("/api/cases/1/runs", json={"module": "otx", "value": "1.1.1.1"})
     assert ("country", "Australia") in {(i["kind"], i["value"]) for i in otx.json()["data"]["findings"]}
+    monkeypatch.setattr("app.modules.chess.fetch_player", lambda _u: {"username": "ada", "name": "Ada", "url": "https://www.chess.com/member/ada", "location": "", "country": "", "title": ""})
+    monkeypatch.setattr("app.modules.lichess.fetch_user", lambda _u: {"username": "ada", "profile": {"realName": "Ada", "location": "", "bio": "", "links": ""}})
+    monkeypatch.setattr("app.modules.stackoverflow.search_users", lambda _q: [{"display_name": "Ada", "link": "https://stackoverflow.com/users/1/ada", "location": "", "website_url": ""}])
+    monkeypatch.setattr("app.modules.devto.fetch_user", lambda _u: {"username": "ada", "name": "Ada", "summary": "", "location": "", "website_url": "", "twitter_username": None, "github_username": None})
+    assert api.post("/api/cases/1/runs", json={"module": "chess", "value": "ada"}).status_code == 201
+    assert api.post("/api/cases/1/runs", json={"module": "lichess", "value": "ada"}).status_code == 201
+    assert api.post("/api/cases/1/runs", json={"module": "stackoverflow", "value": "Ada"}).status_code == 201
+    assert api.post("/api/cases/1/runs", json={"module": "devto", "value": "ada"}).status_code == 201
 
 
 def test_detect_and_smart_phone_lookup(tmp_path):
@@ -544,6 +552,10 @@ def test_detect_and_smart_phone_lookup(tmp_path):
         "dockerhub",
         "hackernews",
         "reddit",
+        "chess",
+        "lichess",
+        "stackoverflow",
+        "devto",
     ]
     ip = api.get("/api/detect", params={"q": "1.1.1.1"})
     assert [item["module"] for item in ip.json()["data"]["matches"]] == [

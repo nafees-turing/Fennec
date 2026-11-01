@@ -111,6 +111,7 @@ def classify(raw: str) -> dict:
                 _match("person", text, "Wikidata person", "name"),
                 _match("sanctions", text, "Sanctions", "name"),
                 _match("wikipedia", text, "Wikipedia", "name"),
+                _match("stackoverflow", text, "Stack Overflow", "name"),
             ],
         }
 
@@ -128,6 +129,10 @@ def classify(raw: str) -> dict:
                 _match("dockerhub", handle, "Docker Hub", "username"),
                 _match("hackernews", handle, "Hacker News", "username"),
                 _match("reddit", handle, "Reddit", "username"),
+                _match("chess", handle, "Chess.com", "username"),
+                _match("lichess", handle, "Lichess", "username"),
+                _match("stackoverflow", handle, "Stack Overflow", "username"),
+                _match("devto", handle, "DEV", "username"),
             ],
         }
 
