@@ -14,8 +14,10 @@ Cases, phone metadata, and email (Holehe) are live. Username, domain, and file m
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
+
+Use `python -m uvicorn` from that venv. A system `uvicorn` on PATH will miss Holehe’s `trio` dependency.
 
 Open http://127.0.0.1:8000. The database file is `data/fennec.db`.
 

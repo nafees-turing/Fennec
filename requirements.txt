@@ -3,5 +3,10 @@ uvicorn==0.54.0
 jinja2==3.1.6
 phonenumbers==9.0.42
 holehe==1.61
+trio==0.35.0
+tqdm==4.70.1
+termcolor==3.3.0
+beautifulsoup4==4.15.0
+colorama==0.4.6
 pytest==9.2.0
 httpx==0.28.1

@@ -17,9 +17,16 @@ SPEC = ModuleSpec(
 
 def scan_sites(email: str) -> list[dict]:
     """Run Holehe. Tests replace this function so the suite stays offline."""
-    import httpx
-    import trio
-    from holehe.core import get_functions, import_submodules, launch_module
+    try:
+        import httpx
+        import trio
+        from holehe.core import get_functions, import_submodules, launch_module
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            f"Missing {exc.name}. Use the project venv: "
+            "source .venv/bin/activate && pip install -r requirements.txt && "
+            "python -m uvicorn app.main:app --reload"
+        ) from exc
 
     modules = import_submodules("holehe.modules")
     websites = get_functions(modules)
