@@ -2,29 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fennec</title>
-  <style>
-    body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 2.5rem auto; max-width: 42rem; line-height: 1.5; color: #1c1917; }
-    h1 { margin-bottom: 0.2rem; }
-    .muted { color: #57534e; }
-    ul { padding-left: 1.2rem; }
-  </style>
+  <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <h1>Fennec</h1>
-  <p class="muted">Local OSINT workbench. Milestone M0: shell only.</p>
-  <p>Modules arrive in later milestones. None of them run yet.</p>
-  <ul>
-    <li>M1 Cases</li>
-    <li>M2 Username (Maigret)</li>
-    <li>M3 Email (Holehe)</li>
-    <li>M4 Domain (WHOIS and DNS)</li>
-    <li>M5 Phone metadata (phonenumbers)</li>
-    <li>M6 File metadata (ExifTool)</li>
-    <li>M7 Dossier export</li>
-    <li>M8 Correlation</li>
-    <li>M9 Run history and safety rails</li>
-  </ul>
-  <p class="muted">Lawful use only. Data stays on this machine. See Fennec_Plan.md.</p>
+  <div class="app">
+    <aside class="rail">
+      <div class="brand">
+        <span class="mark">F</span>
+        <div>
+          <strong>Fennec</strong>
+          <p>Local OSINT</p>
+        </div>
+      </div>
+      <form id="new-case" class="new-case">
+        <input name="name" placeholder="New case name" required maxlength="120">
+        <button type="submit">Create</button>
+      </form>
+      <nav id="case-list" class="case-list" aria-label="Cases"></nav>
+    </aside>
+    <main class="workspace">
+      <header class="top">
+        <div>
+          <p class="eyebrow" id="case-kicker">No case open</p>
+          <h1 id="case-title">Choose or create a case</h1>
+        </div>
+        <p class="legal">Public sources only. Results stay in the local SQLite file.</p>
+      </header>
+      <section id="modules" class="modules" hidden></section>
+      <section class="split">
+        <div>
+          <h2>Findings</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Kind</th><th>Value</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr>
+              </thead>
+              <tbody id="findings"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h2>Runs</h2>
+          <ol id="runs" class="runs"></ol>
+        </div>
+      </section>
+      <p id="notice" class="notice" role="status"></p>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
 </body>
 </html>

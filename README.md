@@ -1,12 +1,12 @@
 # Fennec
 
-Local open-source OSINT workbench. One case file on your machine, modules added one milestone at a time.
+Local open-source OSINT workbench. Cases and findings live in SQLite. Every action is a JSON API, and the page in the browser calls that same API.
 
-The build plan, milestone tests, and tool list are in [Fennec_Plan.md](Fennec_Plan.md).
+The milestone plan is in [Fennec_Plan.md](Fennec_Plan.md).
 
 ## Status
 
-**M0 — shell.** Health check and a home page. Username, email, domain, and metadata modules are planned and not installed yet.
+Workbench shell, cases, and the phone module (`phonenumbers`) are in place. Username, email, domain, and file metadata are registered and return `module_unavailable` until their milestones.
 
 ## Setup
 
@@ -17,7 +17,20 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Open http://127.0.0.1:8000
+Open http://127.0.0.1:8000. The database file is `data/fennec.db`.
+
+## API
+
+Responses are either `{"data": ...}` or `{"error": {"code": "...", "message": "..."}}`.
+
+| Method | Path | Role |
+|--------|------|------|
+| GET | `/api/health` | Process and storage check |
+| GET | `/api/modules` | Registered modules and whether each one can run |
+| GET | `/api/cases` | List cases |
+| POST | `/api/cases` | `{"name": "...", "notes": ""}` |
+| GET | `/api/cases/{id}` | Case, runs, and findings |
+| POST | `/api/cases/{id}/runs` | `{"module": "phone", "value": "+14155552671"}` |
 
 ## Test
 
@@ -25,8 +38,8 @@ Open http://127.0.0.1:8000
 pytest
 ```
 
-M0 does not call the network or any OSINT tool.
+## Libraries
 
-## Use
+Pinned in `requirements.txt`: FastAPI 0.162, Uvicorn 0.54, Jinja2 3.1.6, phonenumbers 9.0.42, pytest 9.2, httpx 0.28.1. Later milestones add Maigret, Holehe, dnspython, and whoisdomain (RDAP first). `python-whois` is not the default because gTLD WHOIS has been retired.
 
-Lawful use only: your own data, authorized work, journalism, and research. Results stay in this local process. See the plan for the full rule.
+Lawful use only. Phone results are numbering-plan metadata, not a subscriber lookup.

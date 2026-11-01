@@ -38,10 +38,10 @@ Recommended stack, fixed for the first milestones so we do not rebuild the shell
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| API | FastAPI | Async jobs, clear module routes, easy tests |
+| API | FastAPI JSON envelope | `{"data": ...}` or `{"error": {"code", "message"}}`. The UI uses only this API |
 | UI | Server-rendered pages (Jinja) + a little HTMX | One process, no separate frontend repo yet |
 | Store | SQLite | Cases and findings without another service |
-| Tools | Subprocess or library adapters | Maigret, Holehe, dnspython, python-whois, ExifTool |
+| Tools | Subprocess or library adapters | Maigret, Holehe, dnspython, whoisdomain, phonenumbers, ExifTool |
 | Tests | pytest + adapter fakes | Each phase can pass offline |
 
 SpiderFoot stays optional and out of the core. It is a full framework, not a library we need on day one.
@@ -213,7 +213,7 @@ Breach APIs that need a paid key (including Have I Been Pwned) stay optional plu
 | Maigret | M2 | Username profiles |
 | Holehe | M3 | Email → sites |
 | dnspython | M4 | DNS |
-| python-whois | M4 | WHOIS |
+| whoisdomain | M4 | WHOIS, RDAP first. gTLD WHOIS was sunset, so python-whois is not the default |
 | phonenumbers | M5 | Phone number metadata from the public numbering plan |
 | ExifTool | M6 | File metadata |
 

@@ -1,0 +1,129 @@
+import sqlite3
+from pathlib import Path
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS cases (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+    id INTEGER PRIMARY KEY,
+    case_id INTEGER NOT NULL REFERENCES cases(id),
+    module_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    input_value TEXT NOT NULL,
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS findings (
+    id INTEGER PRIMARY KEY,
+    case_id INTEGER NOT NULL REFERENCES cases(id),
+    run_id INTEGER NOT NULL REFERENCES runs(id),
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    source TEXT NOT NULL,
+    confidence TEXT NOT NULL,
+    evidence TEXT NOT NULL DEFAULT ''
+);
+"""
+
+
+def connect(path: Path) -> sqlite3.Connection:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db(path: Path) -> None:
+    with connect(path) as conn:
+        conn.executescript(SCHEMA)
+
+
+def create_case(path: Path, name: str, notes: str) -> dict:
+    with connect(path) as conn:
+        cur = conn.execute(
+            "INSERT INTO cases (name, notes) VALUES (?, ?)",
+            (name, notes),
+        )
+        return dict(conn.execute("SELECT * FROM cases WHERE id = ?", (cur.lastrowid,)).fetchone())
+
+
+def list_cases(path: Path) -> list[dict]:
+    with connect(path) as conn:
+        rows = conn.execute("SELECT * FROM cases ORDER BY id DESC").fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_case(path: Path, case_id: int) -> dict | None:
+    with connect(path) as conn:
+        row = conn.execute("SELECT * FROM cases WHERE id = ?", (case_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def add_run(
+    path: Path,
+    case_id: int,
+    module_id: str,
+    status: str,
+    input_value: str,
+    error: str | None,
+    findings: list[dict],
+) -> dict:
+    with connect(path) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO runs (case_id, module_id, status, input_value, error)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (case_id, module_id, status, input_value, error),
+        )
+        run_id = cur.lastrowid
+        for finding in findings:
+            conn.execute(
+                """
+                INSERT INTO findings
+                    (case_id, run_id, kind, value, source, confidence, evidence)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    case_id,
+                    run_id,
+                    finding["kind"],
+                    finding["value"],
+                    finding["source"],
+                    finding["confidence"],
+                    finding.get("evidence", ""),
+                ),
+            )
+        run = dict(conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone())
+    run["findings"] = list_findings(path, case_id, run_id)
+    return run
+
+
+def list_runs(path: Path, case_id: int) -> list[dict]:
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM runs WHERE case_id = ? ORDER BY id DESC",
+            (case_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_findings(path: Path, case_id: int, run_id: int | None = None) -> list[dict]:
+    sql = "SELECT * FROM findings WHERE case_id = ?"
+    params: list = [case_id]
+    if run_id is not None:
+        sql += " AND run_id = ?"
+        params.append(run_id)
+    sql += " ORDER BY id"
+    with connect(path) as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(row) for row in rows]
+
+
