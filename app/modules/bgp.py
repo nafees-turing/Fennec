@@ -41,7 +41,10 @@ def run(raw: str, scanner=None) -> ModuleResult:
         data = scanner(text)
     except Exception as exc:
         return ModuleResult(status="failed", error=f"BGPView failed: {exc}")
+    from app.modules.geoip import location_findings
+
     findings = [Finding("ip", text, "bgpview", "high", "BGPView IP query")]
+    findings.extend(location_findings(text))
     prefixes = data.get("prefixes") or data.get("ipv4_prefixes") or data.get("ipv6_prefixes") or []
     for row in prefixes[:6]:
         prefix = str(row.get("prefix") or "")

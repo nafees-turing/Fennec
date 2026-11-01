@@ -133,6 +133,37 @@ def lookup_ip(ip: str) -> dict:
     return row
 
 
+def location_findings(ip: str) -> list[Finding]:
+    """Country/city/ASN from local mmdb. Safe to call from other modules."""
+    try:
+        addr = ipaddress.ip_address(ip.strip().split()[0])
+    except ValueError:
+        return []
+    if not addr.is_global:
+        return []
+    try:
+        row = lookup_ip(str(addr))
+    except Exception:
+        return []
+    source = row.get("source_geo") or row.get("source_asn") or "geoip"
+    out: list[Finding] = []
+    if row.get("asn"):
+        out.append(Finding("asn", row["asn"], row.get("source_asn") or source, "medium", row.get("asn_org") or "DB-IP ASN Lite"))
+    if row.get("asn_org"):
+        out.append(Finding("org", row["asn_org"], row.get("source_asn") or source, "medium", "Autonomous system organisation"))
+    if row.get("country"):
+        out.append(Finding("country", row["country"], source, "medium", row.get("iso") or "IP range, not GPS"))
+    if row.get("region"):
+        out.append(Finding("region", row["region"], source, "low", "IP-range subdivision"))
+    if row.get("city"):
+        out.append(Finding("city", row["city"], source, "low", "IP-range city, not a live location"))
+    if row.get("lat") is not None and row.get("lon") is not None:
+        out.append(
+            Finding("coords", f"{row['lat']},{row['lon']}", source, "low", "Approximate centroid of the IP block.")
+        )
+    return out
+
+
 def run(raw: str, lookup=None) -> ModuleResult:
     text = raw.strip()
     try:

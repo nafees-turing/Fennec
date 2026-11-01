@@ -100,6 +100,10 @@ def run(raw: str, dns_lookup=None, whois_lookup=None) -> ModuleResult:
             if not value:
                 continue
             findings.append(Finding(kind, value, "dnspython", "high", f"{rtype} record"))
+            if kind in {"ip", "ipv6"}:
+                from app.modules.geoip import location_findings
+
+                findings.extend(location_findings(value))
 
     whois_source = str(registration.get("source") or "whoisdomain")
     mapping = [

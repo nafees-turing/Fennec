@@ -46,7 +46,10 @@ def run(raw: str, scanner=None) -> ModuleResult:
         data = scanner(text)
     except Exception as exc:
         return ModuleResult(status="failed", error=f"InternetDB failed: {exc}")
+    from app.modules.geoip import location_findings
+
     findings = [Finding("ip", text, "internetdb", "high", "Shodan InternetDB, one request, no API key.")]
+    findings.extend(location_findings(text))
     for host in (data.get("hostnames") or [])[:12]:
         findings.append(Finding("hostname", str(host), "internetdb", "medium", "Indexed hostname"))
     for port in (data.get("ports") or [])[:20]:

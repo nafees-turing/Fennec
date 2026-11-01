@@ -46,7 +46,10 @@ def run(raw: str, scanner=None) -> ModuleResult:
     if payload.get("status") == 429:
         return ModuleResult(status="failed", error="GreyNoise rate-limited this IP. Try later.")
     data = payload.get("body") or {}
+    from app.modules.geoip import location_findings
+
     findings = [Finding("ip", text, "greynoise", "high", "GreyNoise Community, no API key.")]
+    findings.extend(location_findings(text))
     if payload.get("status") == 404 or not data:
         findings.append(Finding("note", "not in community index", "greynoise", "low", "No classification."))
         return ModuleResult(status="ok", findings=findings)

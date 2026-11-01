@@ -40,7 +40,10 @@ def run(raw: str, lookup=None) -> ModuleResult:
         names = lookup(text)
     except Exception as exc:
         return ModuleResult(status="failed", error=f"PTR lookup failed: {exc}")
+    from app.modules.geoip import location_findings
+
     findings = [Finding("ip", text, "dnspython", "high", "Reverse DNS (PTR)")]
+    findings.extend(location_findings(text))
     if not names:
         findings.append(Finding("hostname", "(none)", "dnspython", "low", "No PTR record for this address."))
         return ModuleResult(status="ok", findings=findings)

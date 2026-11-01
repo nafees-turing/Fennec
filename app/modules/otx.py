@@ -43,7 +43,10 @@ def run(raw: str, scanner=None) -> ModuleResult:
         data = scanner(text)
     except Exception as exc:
         return ModuleResult(status="failed", error=f"OTX lookup failed: {exc}")
+    from app.modules.geoip import location_findings
+
     findings = [Finding("ip", text, "otx", "high", "AlienVault OTX, one request.")]
+    findings.extend(location_findings(text))
     pulses = (data.get("pulse_info") or {}).get("count")
     if pulses is not None:
         findings.append(Finding("note", f"{pulses} pulses", "otx", "medium", "Community pulses mentioning this IP"))
