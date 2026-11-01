@@ -434,7 +434,6 @@ def test_home_shell(tmp_path):
     assert "/static/favicon.svg" in response.text
     assert 'id="tool-list"' in response.text
     assert 'id="smart-input"' in response.text
-    assert 'id="rail-toggle"' in response.text
     assert "/static/app.js" in response.text
 
 

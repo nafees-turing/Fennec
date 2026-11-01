@@ -5,7 +5,7 @@ const state = {
   filter: "all",
   matches: [],
   selected: new Set(),
-  collapsed: localStorage.getItem("fennec.rail") === "1",
+  openGroups: loadOpenGroups(),
 };
 
 const notice = document.querySelector("#notice");
@@ -32,14 +32,19 @@ function setNotice(text) {
   notice.textContent = text || "";
 }
 
-function persist() {
-  if (state.caseId) localStorage.setItem("fennec.caseId", String(state.caseId));
-  localStorage.setItem("fennec.rail", state.collapsed ? "1" : "0");
+function loadOpenGroups() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("fennec.groups") || "null");
+    if (Array.isArray(saved) && saved.length) return new Set(saved);
+  } catch (error) {
+    /* keep default */
+  }
+  return new Set(["basic"]);
 }
 
-function applyRail() {
-  document.querySelector(".app").classList.toggle("collapsed", state.collapsed);
-  document.querySelector("#rail-toggle").title = state.collapsed ? "Expand sidebar" : "Collapse sidebar";
+function persist() {
+  if (state.caseId) localStorage.setItem("fennec.caseId", String(state.caseId));
+  localStorage.setItem("fennec.groups", JSON.stringify([...state.openGroups]));
 }
 
 async function loadCases(selectId) {
@@ -115,10 +120,27 @@ function renderTools() {
   for (const group of GROUPS) {
     const items = state.modules.filter((item) => item.category === group.id);
     if (!items.length) continue;
-    const heading = document.createElement("h3");
+    const open = state.openGroups.has(group.id);
+    const heading = document.createElement("button");
+    heading.type = "button";
     heading.className = "tool-group";
-    heading.textContent = group.label;
+    heading.setAttribute("aria-expanded", open ? "true" : "false");
+    const title = document.createElement("span");
+    title.textContent = `${group.label} (${items.length})`;
+    const chevron = document.createElement("span");
+    chevron.className = "chevron";
+    chevron.textContent = open ? "▾" : "▸";
+    heading.append(title, chevron);
+    heading.addEventListener("click", () => {
+      if (state.openGroups.has(group.id)) state.openGroups.delete(group.id);
+      else state.openGroups.add(group.id);
+      persist();
+      renderTools();
+    });
     toolList.append(heading);
+    if (!open) continue;
+    const body = document.createElement("div");
+    body.className = "tool-body";
     for (const module of items) {
       const button = document.createElement("button");
       button.type = "button";
@@ -135,8 +157,9 @@ function renderTools() {
       }
       button.title = module.available ? module.summary : module.reason;
       button.addEventListener("click", () => pinTool(module));
-      toolList.append(button);
+      body.append(button);
     }
+    toolList.append(body);
   }
 }
 
@@ -275,6 +298,11 @@ document.querySelector("#smart-input").addEventListener("input", () => {
       const result = await api(`/api/detect?q=${encodeURIComponent(value)}`);
       state.matches = result.matches || [];
       state.selected = new Set(state.matches.map((item) => item.module));
+      for (const item of state.matches) {
+        const module = state.modules.find((row) => row.id === item.module);
+        if (module) state.openGroups.add(module.category);
+      }
+      persist();
       renderChips();
     } catch (error) {
       setNotice(error.message);
@@ -327,14 +355,7 @@ document.querySelector("#new-case").addEventListener("submit", async (event) => 
   }
 });
 
-document.querySelector("#rail-toggle").addEventListener("click", () => {
-  state.collapsed = !state.collapsed;
-  persist();
-  applyRail();
-});
-
 async function boot() {
-  applyRail();
   state.modules = await api("/api/modules");
   renderTools();
   renderChips();
