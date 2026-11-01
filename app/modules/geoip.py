@@ -8,7 +8,7 @@ SPEC = ModuleSpec(
     id="geoip",
     title="IP network",
     milestone="later",
-    summary="Local only: address scope, ASN/org from a DB-IP lite file, country if an mmdb is present.",
+    summary="Local only: scope, ASN, and country/city from DB-IP or GeoLite mmdb files. Not GPS.",
     input_label="IPv4 or IPv6 address",
     placeholder="1.1.1.1",
     available=True,
@@ -19,11 +19,29 @@ SPEC = ModuleSpec(
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _first_existing(paths: list[Path]) -> Path | None:
+    for path in paths:
+        if path.is_file():
+            return path
+    return None
+
+
 def database_path() -> Path:
     env = os.environ.get("FENNEC_GEOLITE", "").strip()
     if env:
         return Path(env)
-    return Path("data") / "GeoLite2-Country.mmdb"
+    intel = ROOT.parent / "netwatch" / "data" / "intel"
+    found = _first_existing(
+        [
+            Path("data") / "dbip-city-lite.mmdb",
+            Path("data") / "dbip-country-lite.mmdb",
+            Path("data") / "GeoLite2-City.mmdb",
+            Path("data") / "GeoLite2-Country.mmdb",
+            intel / "dbip-city-lite.mmdb",
+            intel / "dbip-country-lite.mmdb",
+        ]
+    )
+    return found or Path("data") / "dbip-city-lite.mmdb"
 
 
 def asn_path() -> Path:
@@ -87,15 +105,23 @@ def lookup_geo(ip: str) -> dict:
         try:
             record = reader.city(ip)
             city = record.city.name or ""
+            subdiv = ""
+            if record.subdivisions and record.subdivisions.most_specific.name:
+                subdiv = record.subdivisions.most_specific.name
+            lat = record.location.latitude
+            lon = record.location.longitude
         except geoip2.errors.InvalidModelError:
             record = reader.country(ip)
-            city = ""
+            city, subdiv, lat, lon = "", "", None, None
         except geoip2.errors.AddressNotFoundError:
             return {"source_geo": path.name}
     return {
         "country": record.country.name or "",
         "iso": record.country.iso_code or "",
         "city": city,
+        "region": subdiv,
+        "lat": lat,
+        "lon": lon,
         "source_geo": path.name,
     }
 
@@ -137,8 +163,32 @@ def run(raw: str, lookup=None) -> ModuleResult:
         findings.append(
             Finding("country", row["country"], row.get("source_geo") or "geoip", "medium", row.get("iso") or "")
         )
+    if row.get("region"):
+        findings.append(
+            Finding("region", row["region"], row.get("source_geo") or "geoip", "low", "Subdivision from the IP range, not GPS.")
+        )
     if row.get("city"):
         findings.append(
-            Finding("city", row["city"], row.get("source_geo") or "geoip", "low", "City from a local mmdb.")
+            Finding("city", row["city"], row.get("source_geo") or "geoip", "low", "City from the IP range, not a live location.")
+        )
+    if row.get("lat") is not None and row.get("lon") is not None:
+        findings.append(
+            Finding(
+                "coords",
+                f"{row['lat']},{row['lon']}",
+                row.get("source_geo") or "geoip",
+                "low",
+                "Approximate centroid of the IP block. Often tens of kilometres off.",
+            )
+        )
+    if not row.get("country") and not row.get("source_geo"):
+        findings.append(
+            Finding(
+                "note",
+                "no location database",
+                "fennec",
+                "low",
+                "Drop dbip-city-lite.mmdb (CC-BY from db-ip.com/db/lite.php) into data/ for country/city.",
+            )
         )
     return ModuleResult(status="ok", findings=findings)

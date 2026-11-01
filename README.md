@@ -23,7 +23,7 @@ Use `python -m uvicorn` from that venv. A system `uvicorn` on PATH will miss Hol
 
 Open http://127.0.0.1:8000. The database file is `data/fennec.db`.
 
-IP network: every address gets a local scope (private, global, loopback). ASN and org come from DB-IP ASN Lite if the file is present (`data/dbip-asn-lite.mmdb`, `FENNEC_ASN`, or a sibling `netwatch/data/intel/dbip-asn-lite.mmdb`). Country/city still need a GeoLite or DB-IP city/country mmdb (`FENNEC_GEOLITE`). No ip-api or other remote IP lookup.
+IP network: every address gets a local scope (private, global, loopback). ASN and org come from DB-IP ASN Lite if the file is present (`data/dbip-asn-lite.mmdb`, `FENNEC_ASN`, or a sibling `netwatch/data/intel/dbip-asn-lite.mmdb`). Country, region, city, and approximate coordinates need **DB-IP City Lite** or Country Lite (CC-BY, no API key): put `dbip-city-lite.mmdb` in `data/` or set `FENNEC_GEOLITE`. Download: https://db-ip.com/db/lite.php . That is the ISP range, not GPS. No ip-api.
 
 Docker:
 
