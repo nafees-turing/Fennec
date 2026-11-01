@@ -12,6 +12,7 @@ SPEC = ModuleSpec(
     placeholder="+14155552671",
     available=True,
     network=False,
+    category="basic",
 )
 
 
@@ -30,13 +31,23 @@ def run(raw: str) -> ModuleResult:
     carrier_name = carrier.name_for_number(number, "en") or ""
     zones = list(timezone.time_zones_for_number(number))
     valid = phonenumbers.is_valid_number(number)
+    ntype = phonenumbers.number_type(number)
+    type_map = {
+        phonenumbers.PhoneNumberType.FIXED_LINE: "fixed-line",
+        phonenumbers.PhoneNumberType.MOBILE: "mobile",
+        phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE: "fixed-or-mobile",
+        phonenumbers.PhoneNumberType.TOLL_FREE: "toll-free",
+        phonenumbers.PhoneNumberType.UNKNOWN: "unknown",
+    }
+    line_type = type_map.get(ntype, str(ntype))
     evidence = (
-        f"valid={valid}; possible=true; "
+        f"valid={valid}; possible=true; type={line_type}; "
         f"country_code=+{number.country_code}; "
         "carrier is the original prefix owner, not a live location"
     )
     findings = [
         Finding("phone", formatted, "phonenumbers", "high" if valid else "medium", evidence),
+        Finding("line_type", line_type, "phonenumbers", "medium", "Numbering-plan line type"),
     ]
     if region:
         findings.append(Finding("region", region, "phonenumbers", "medium", "Numbering-plan region, not GPS."))

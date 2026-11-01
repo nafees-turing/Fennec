@@ -2,7 +2,7 @@
 
 Local open-source OSINT workbench. Cases and findings live in SQLite. Every action is a JSON API, and the page in the browser calls that same API.
 
-The milestone plan is in [Fennec_Plan.md](Fennec_Plan.md).
+The milestone plan is in [Fennec_Plan.md](Fennec_Plan.md). Tool research and the mapping into Fennec are in [docs/](docs/).
 
 ## Status
 

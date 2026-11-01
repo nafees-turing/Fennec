@@ -13,6 +13,7 @@ SPEC = ModuleSpec(
     available=True,
     input_kind="file",
     network=False,
+    category="files",
 )
 
 EXIF_TAGS = {"DateTime", "DateTimeOriginal", "Make", "Model", "Software", "Artist", "ImageDescription"}

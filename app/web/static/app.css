@@ -54,6 +54,15 @@ body {
   font-weight: 650;
 }
 .hint { font-size: 0.78rem; margin-bottom: 0.55rem; line-height: 1.4; }
+.tool-group {
+  margin: 0.7rem 0 0.25rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #93c5fd;
+  font-weight: 650;
+}
+.nav-list .tool-group:first-child { margin-top: 0; }
 .new-case { display: grid; grid-template-columns: 1fr auto; gap: 0.35rem; margin-bottom: 0.55rem; }
 .nav-list { display: flex; flex-direction: column; gap: 0.18rem; }
 .nav-list button {
@@ -112,6 +121,20 @@ h1 { margin: 0.12rem 0 0; font-size: 1.7rem; }
 .top { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1rem; }
 .top-actions a { color: var(--accent-hover); margin-left: 0.85rem; text-decoration: none; font-weight: 600; font-size: 0.88rem; }
 .top-actions a:hover { text-decoration: underline; }
+.smart { margin-bottom: 0.9rem; }
+.smart-form { display: flex; gap: 0.4rem; }
+.smart-form input { flex: 1; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 1.6rem; margin-top: 0.45rem; }
+.chip {
+  border: 1px solid var(--line);
+  background: #163056;
+  color: #dbeafe;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
+}
+.chip.miss { background: transparent; color: var(--muted); }
+.nav-list button.related { border-color: #1d4ed8; }
 .inspector {
   display: grid;
   grid-template-columns: minmax(12rem, 1.1fr) minmax(16rem, 1.4fr);

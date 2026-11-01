@@ -22,6 +22,11 @@ def test_health_and_modules(tmp_path):
     assert by_id["metadata"]["input_kind"] == "file"
     assert by_id["company"]["available"] is True
     assert by_id["geoip"]["network"] is False
+    assert by_id["email"]["category"] == "basic"
+    assert by_id["social"]["category"] == "social"
+    assert by_id["address"]["category"] == "addresses"
+    assert by_id["domain"]["category"] == "network"
+    assert by_id["certs"]["category"] == "network"
     assert "RDAP" in by_id["domain"]["summary"]
 
 
@@ -367,12 +372,67 @@ def test_asn_from_netwatch_db_if_present():
     assert "AS13335" in asns
 
 
+def test_name_address_social_certs_archive(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "app.modules.social.scan_social",
+        lambda _user: [
+            {"name": "reddit", "url": "https://www.reddit.com/user/ada", "status": 200, "exists": True, "error": None},
+            {"name": "tiktok", "url": "https://www.tiktok.com/@ada", "status": 404, "exists": False, "error": None},
+        ],
+    )
+    monkeypatch.setattr("app.modules.certs.fetch_certs", lambda _host: ["www.example.com", "mail.example.com"])
+    monkeypatch.setattr(
+        "app.modules.archive.fetch_archive",
+        lambda _host: {
+            "available": True,
+            "url": "https://web.archive.org/web/20200101000000/https://example.com/",
+            "timestamp": "20200101000000",
+            "status": "200",
+        },
+    )
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Kit"})
+    name = api.post("/api/cases/1/runs", json={"module": "name", "value": "Ada Lovelace"})
+    assert name.status_code == 201
+    assert ("name", "Ada Lovelace") in {(i["kind"], i["value"]) for i in name.json()["data"]["findings"]}
+    place = api.post("/api/cases/1/runs", json={"module": "address", "value": "221B Baker Street, London"})
+    assert place.status_code == 201
+    social = api.post("/api/cases/1/runs", json={"module": "social", "value": "ada"})
+    assert ("account", "https://www.reddit.com/user/ada") in {
+        (i["kind"], i["value"]) for i in social.json()["data"]["findings"]
+    }
+    certs = api.post("/api/cases/1/runs", json={"module": "certs", "value": "example.com"})
+    assert ("cert_name", "www.example.com") in {(i["kind"], i["value"]) for i in certs.json()["data"]["findings"]}
+    archive = api.post("/api/cases/1/runs", json={"module": "archive", "value": "example.com"})
+    assert archive.status_code == 201
+    assert any(i["kind"] == "url" and "web.archive.org" in i["value"] for i in archive.json()["data"]["findings"])
+
+
+def test_detect_and_smart_phone_lookup(tmp_path):
+    api = client(tmp_path)
+    email = api.get("/api/detect", params={"q": "Ada@Example.com"})
+    assert email.json()["data"]["detected"] == "email"
+    modules = [item["module"] for item in email.json()["data"]["matches"]]
+    assert modules == ["email", "domain"]
+    phone = api.get("/api/detect", params={"q": "+41446681800"})
+    assert phone.json()["data"]["detected"] == "phone"
+    handle = api.get("/api/detect", params={"q": "@octocat"})
+    assert [item["module"] for item in handle.json()["data"]["matches"]] == ["username", "social"]
+    api.post("/api/cases", json={"name": "Auto"})
+    run = api.post("/api/cases/1/lookup", json={"value": "+41446681800"})
+    assert run.status_code == 201
+    assert run.json()["data"]["detected"] == "phone"
+    assert run.json()["data"]["runs"][0]["status"] == "ok"
+
+
 def test_home_shell(tmp_path):
     response = client(tmp_path).get("/")
     assert response.status_code == 200
     assert "Fennec" in response.text
     assert "/static/favicon.svg" in response.text
     assert 'id="tool-list"' in response.text
+    assert "Grouped by kind" in response.text
+    assert 'id="smart-input"' in response.text
     assert 'id="inspector"' in response.text
     assert "/static/app.js" in response.text
 

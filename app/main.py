@@ -10,7 +10,7 @@ from app import pdf as pdf_export
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app import correlate, db
+from app import correlate, db, detect as detect_mod
 from app.modules.base import ModuleResult
 from app.modules.registry import execute, get_module, list_modules
 from app.netguard import NetworkGuard
@@ -52,6 +52,10 @@ def create_app(
     @app.get("/api/modules")
     def modules() -> JSONResponse:
         return ok([item.as_dict() for item in list_modules()])
+
+    @app.get("/api/detect")
+    def detect(q: str = "") -> JSONResponse:
+        return ok(detect_mod.classify(q))
 
     @app.get("/api/cases")
     def cases() -> JSONResponse:
@@ -149,33 +153,75 @@ def create_app(
             return fail("invalid_input", "A value is required.", 400)
         if not spec.available:
             return fail("module_unavailable", spec.reason, 409)
-        key = f"{module_id}:{value.lower()}"
-        if spec.network:
-            blocked = app.state.network.begin(key)
-            if blocked:
-                return fail("network_limited", blocked, 429)
-        try:
-            result = await asyncio.wait_for(
-                asyncio.to_thread(execute, module_id, value),
-                timeout=app.state.run_timeout,
-            )
-        except TimeoutError:
-            result = ModuleResult(status="failed", error="Timed out before the module finished.")
-        finally:
-            if spec.network:
-                app.state.network.end(key)
-        run = db.add_run(
-            app.state.db_path,
-            case_id,
-            module_id,
-            result.status,
-            value,
-            result.error,
-            [item.as_dict() for item in result.findings],
-        )
+        run, error = await run_module(app, case_id, module_id, value)
+        if error:
+            return fail(error["code"], error["message"], error["status"])
         return ok(run, 201)
 
+    @app.post("/api/cases/{case_id}/lookup")
+    async def smart_lookup(case_id: int, request: Request) -> JSONResponse:
+        if db.get_case(app.state.db_path, case_id) is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        body = await request.json()
+        value = str(body.get("value", "")).strip()
+        if not value:
+            return fail("invalid_input", "A value is required.", 400)
+        classified = detect_mod.classify(value)
+        if not classified["matches"]:
+            return fail("unrecognized", "Could not tell if that is an email, phone, domain, IP, or handle.", 400)
+        runs = []
+        for item in classified["matches"]:
+            run, error = await run_module(app, case_id, item["module"], item["value"])
+            if error:
+                runs.append(
+                    {
+                        "module_id": item["module"],
+                        "status": "skipped",
+                        "input_value": item["value"],
+                        "error": error["message"],
+                        "match_label": item["label"],
+                        "findings": [],
+                    }
+                )
+                continue
+            run["match_label"] = item["label"]
+            runs.append(run)
+        return ok({"detected": classified["detected"], "matches": classified["matches"], "runs": runs}, 201)
+
     return app
+
+
+async def run_module(app: FastAPI, case_id: int, module_id: str, value: str):
+    spec = get_module(module_id)
+    if spec is None or not spec.available:
+        return None, {"code": "module_unavailable", "message": "That module cannot run.", "status": 409}
+    key = f"{module_id}:{value.lower()}"
+    if spec.network:
+        blocked = app.state.network.begin(key)
+        if blocked:
+            return None, {"code": "network_limited", "message": blocked, "status": 429}
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(execute, module_id, value),
+            timeout=app.state.run_timeout,
+        )
+    except TimeoutError:
+        result = ModuleResult(status="failed", error="Timed out before the module finished.")
+    finally:
+        if spec.network:
+            app.state.network.end(key)
+    run = db.add_run(
+        app.state.db_path,
+        case_id,
+        module_id,
+        result.status,
+        value,
+        result.error,
+        [item.as_dict() for item in result.findings],
+    )
+    return run, None
+
+
 
 
 app = create_app()

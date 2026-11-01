@@ -14,6 +14,7 @@ SPEC = ModuleSpec(
     placeholder="Example Ltd",
     available=True,
     network=True,
+    category="addresses",
 )
 
 

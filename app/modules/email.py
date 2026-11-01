@@ -13,6 +13,7 @@ SPEC = ModuleSpec(
     placeholder="name@example.com",
     available=True,
     network=True,
+    category="basic",
 )
 
 DEFAULT_SITES = {

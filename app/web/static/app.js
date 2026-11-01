@@ -68,6 +68,7 @@ function showWorkspace(open) {
   document.querySelector("#welcome").hidden = open;
   document.querySelector("#results").hidden = !open;
   document.querySelector("#export-links").hidden = !open;
+  document.querySelector("#smart").hidden = !open;
   document.querySelector("#inspector").hidden = !open;
 }
 
@@ -99,30 +100,50 @@ function paintCaseList() {
   });
 }
 
+const GROUPS = [
+  { id: "basic", label: "Basic" },
+  { id: "social", label: "Social" },
+  { id: "addresses", label: "Addresses" },
+  { id: "network", label: "Network" },
+  { id: "files", label: "Files" },
+];
+
 function renderTools() {
   toolList.replaceChildren();
-  for (const module of state.modules) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.disabled = !module.available;
-    button.className = module.id === state.toolId ? "active" : "";
-    const label = document.createElement("span");
-    label.textContent = module.title;
-    button.append(label);
-    if (module.network) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = "net";
-      button.append(tag);
+  for (const group of GROUPS) {
+    const items = state.modules.filter((item) => item.category === group.id);
+    if (!items.length) continue;
+    const heading = document.createElement("h3");
+    heading.className = "tool-group";
+    heading.textContent = group.label;
+    toolList.append(heading);
+    for (const module of items) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.disabled = !module.available;
+      const related = (state.relatedModules || []).includes(module.id);
+      button.className = [
+        module.id === state.toolId ? "active" : "",
+        related ? "related" : "",
+      ].filter(Boolean).join(" ");
+      const label = document.createElement("span");
+      label.textContent = module.title;
+      button.append(label);
+      if (module.network) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = "net";
+        button.append(tag);
+      }
+      button.title = module.available ? module.summary : module.reason;
+      button.addEventListener("click", () => {
+        state.toolId = module.id;
+        persist();
+        renderTools();
+        renderInspector();
+      });
+      toolList.append(button);
     }
-    button.title = module.available ? module.summary : module.reason;
-    button.addEventListener("click", () => {
-      state.toolId = module.id;
-      persist();
-      renderTools();
-      renderInspector();
-    });
-    toolList.append(button);
   }
 }
 
@@ -257,6 +278,78 @@ function renderLinks(rows) {
     host.append(li);
   }
 }
+
+function renderChips(matches) {
+  const host = document.querySelector("#smart-chips");
+  host.replaceChildren();
+  state.relatedModules = (matches || []).map((item) => item.module);
+  renderTools();
+  if (!matches || !matches.length) {
+    const chip = document.createElement("span");
+    chip.className = "chip miss";
+    chip.textContent = "Type an email, +phone, domain, IP, or handle";
+    host.append(chip);
+    return;
+  }
+  for (const item of matches) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = `${item.label}: ${item.value}`;
+    host.append(chip);
+  }
+}
+
+let detectTimer = 0;
+document.querySelector("#smart-input").addEventListener("input", () => {
+  clearTimeout(detectTimer);
+  detectTimer = setTimeout(async () => {
+    const value = document.querySelector("#smart-input").value.trim();
+    if (!value) {
+      renderChips([]);
+      return;
+    }
+    try {
+      const result = await api(`/api/detect?q=${encodeURIComponent(value)}`);
+      renderChips(result.matches);
+    } catch (error) {
+      setNotice(error.message);
+    }
+  }, 180);
+});
+
+document.querySelector("#smart-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.caseId) {
+    setNotice("Select a case first.");
+    return;
+  }
+  const value = document.querySelector("#smart-input").value.trim();
+  const button = event.currentTarget.querySelector("button");
+  button.disabled = true;
+  document.body.classList.add("busy");
+  setNotice("Running only the matching tools.");
+  try {
+    const result = await api(`/api/cases/${state.caseId}/lookup`, {
+      method: "POST",
+      body: JSON.stringify({ value }),
+    });
+    renderChips(result.matches);
+    const names = result.matches.map((item) => item.label).join(", ");
+    const skipped = result.runs.filter((item) => item.status === "skipped").length;
+    setNotice(
+      skipped
+        ? `Detected ${result.detected}. Ran ${names}. ${skipped} close tool(s) skipped (cooldown).`
+        : `Detected ${result.detected}. Ran ${names}.`
+    );
+    document.querySelector("#smart-input").value = "";
+    await openCase(state.caseId);
+  } catch (error) {
+    setNotice(error.message);
+  } finally {
+    button.disabled = false;
+    document.body.classList.remove("busy");
+  }
+});
 
 document.querySelector("#new-case").addEventListener("submit", async (event) => {
   event.preventDefault();

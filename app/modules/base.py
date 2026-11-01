@@ -38,6 +38,7 @@ class ModuleSpec:
     reason: str = ""
     input_kind: str = "text"
     network: bool = False
+    category: str = "basic"
 
     def as_dict(self) -> dict:
         return {
@@ -51,4 +52,5 @@ class ModuleSpec:
             "reason": self.reason,
             "input_kind": self.input_kind,
             "network": self.network,
+            "category": self.category,
         }

@@ -13,6 +13,7 @@ SPEC = ModuleSpec(
     placeholder="1.1.1.1",
     available=True,
     network=False,
+    category="network",
 )
 
 ROOT = Path(__file__).resolve().parents[2]

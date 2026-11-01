@@ -22,7 +22,9 @@ def keys_for(finding: dict) -> list[tuple[str, str]]:
     if not value:
         return []
     keys = [(kind, value)]
-    if kind == "email" and "@" in value:
+    if kind in {"name", "address"}:
+        pass
+    elif kind == "email" and "@" in value:
         keys.append(("domain", value.split("@", 1)[1]))
     elif kind in {"domain", "nameserver", "mx"}:
         host = _host(value.split()[-1])

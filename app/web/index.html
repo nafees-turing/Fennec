@@ -31,7 +31,7 @@
 
       <section class="rail-block">
         <h2>Tools</h2>
-        <p class="hint">Pick a case, then a tool. Results stay on that case.</p>
+        <p class="hint">Grouped by kind. Select a case, then a tool. Lookups stay on that case.</p>
         <nav id="tool-list" class="nav-list tools" aria-label="Tools"></nav>
       </section>
     </aside>
@@ -52,6 +52,14 @@
         </div>
       </header>
 
+      <section id="smart" class="smart" hidden>
+        <form id="smart-form" class="smart-form">
+          <input id="smart-input" placeholder="Paste an email, phone, domain, IP, or handle" autocomplete="off">
+          <button type="submit">Look up</button>
+        </form>
+        <div id="smart-chips" class="chips" aria-live="polite"></div>
+      </section>
+
       <section id="inspector" class="inspector" hidden>
         <div>
           <p class="eyebrow" id="tool-kicker">Tool</p>
@@ -62,7 +70,7 @@
       </section>
 
       <section id="welcome" class="welcome">
-        <p>Create or select a case in the sidebar. Tools appear once, next to the cases. Each lookup is added to the open case so you can keep going later.</p>
+        <p>Create or select a case. Paste an identifier in the lookup bar: Fennec detects email, phone, domain, IP, or handle and only runs the close tools. You can still pick one tool by hand.</p>
       </section>
 
       <section class="split" id="results" hidden>
