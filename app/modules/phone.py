@@ -11,6 +11,7 @@ SPEC = ModuleSpec(
     input_label="Number in international format",
     placeholder="+14155552671",
     available=True,
+    network=False,
 )
 
 

@@ -36,6 +36,8 @@ class ModuleSpec:
     placeholder: str
     available: bool
     reason: str = ""
+    input_kind: str = "text"
+    network: bool = False
 
     def as_dict(self) -> dict:
         return {
@@ -47,4 +49,6 @@ class ModuleSpec:
             "placeholder": self.placeholder,
             "available": self.available,
             "reason": self.reason,
+            "input_kind": self.input_kind,
+            "network": self.network,
         }

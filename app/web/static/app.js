@@ -5,11 +5,12 @@ const caseList = document.querySelector("#case-list");
 const findingsBody = document.querySelector("#findings");
 const runsList = document.querySelector("#runs");
 
-async function api(path, options) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    ...options,
-  });
+async function api(path, options = {}) {
+  const headers = { Accept: "application/json", ...(options.headers || {}) };
+  if (options.body && !(options.body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  const response = await fetch(path, { ...options, headers });
   const body = await response.json();
   if (!response.ok) {
     const message = body.error ? body.error.message : "Request failed";
@@ -50,6 +51,9 @@ async function openCase(id) {
   const caseFile = await api(`/api/cases/${id}`);
   document.querySelector("#welcome").hidden = true;
   document.querySelector("#results").hidden = false;
+  document.querySelector("#export-links").hidden = false;
+  document.querySelector("#export-json").href = `/api/cases/${id}/export`;
+  document.querySelector("#export-html").href = `/api/cases/${id}/export.html`;
   document.querySelector("#case-kicker").textContent = `Case ${caseFile.id}`;
   document.querySelector("#case-title").textContent = caseFile.name;
   document.querySelector("#case-notes").textContent = caseFile.notes || "";
@@ -61,9 +65,6 @@ async function openCase(id) {
 }
 
 function highlightCase() {
-  for (const button of caseList.querySelectorAll("button")) {
-    button.classList.toggle("active", button.textContent && true);
-  }
   api("/api/cases").then((cases) => {
     const buttons = [...caseList.querySelectorAll("button")];
     buttons.forEach((button, index) => {
@@ -142,27 +143,45 @@ function renderModules() {
     card.append(title, summary);
     if (module.available) {
       const form = document.createElement("form");
-      const input = document.createElement("input");
-      input.name = "value";
-      input.required = true;
-      input.placeholder = module.placeholder;
-      input.setAttribute("aria-label", module.input_label);
       const button = document.createElement("button");
       button.type = "submit";
       button.textContent = "Run";
-      form.append(input, button);
+      let payload;
+      if (module.input_kind === "file") {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.name = "file";
+        input.required = true;
+        input.setAttribute("aria-label", module.input_label);
+        form.append(input, button);
+        payload = () => {
+          const data = new FormData();
+          data.append("module", module.id);
+          data.append("file", input.files[0]);
+          return { body: data };
+        };
+      } else {
+        const input = document.createElement("input");
+        input.name = "value";
+        input.required = true;
+        input.placeholder = module.placeholder;
+        input.setAttribute("aria-label", module.input_label);
+        form.append(input, button);
+        payload = () => ({
+          body: JSON.stringify({ module: module.id, value: input.value }),
+        });
+      }
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         button.disabled = true;
         document.body.classList.add("busy");
-        const wait = module.id === "email" ? "Email scan in progress. This can take about a minute." : "";
+        const wait = module.network
+          ? "Network scan running slowly (few connections, then a cooldown)."
+          : "";
         setNotice(wait);
         try {
-          await api(`/api/cases/${state.caseId}/runs`, {
-            method: "POST",
-            body: JSON.stringify({ module: module.id, value: input.value }),
-          });
-          input.value = "";
+          await api(`/api/cases/${state.caseId}/runs`, { method: "POST", ...payload() });
+          form.reset();
           setNotice("");
           await openCase(state.caseId);
         } catch (error) {

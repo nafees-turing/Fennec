@@ -154,10 +154,9 @@ Limits to show in the UI, because the library's own docs say this:
 ### M6 — Metadata
 
 - Upload a file into the case.
-- Run ExifTool when installed.
-- Offline test parses a checked-in fixture of ExifTool JSON (no real GPS of a private person; use a synthetic fixture).
+- Hash and type locally. EXIF via Pillow. No network.
 
-**Test:** fixture metadata becomes findings (software, timestamp). GPS only if the fixture contains it.
+**Test:** a generated JPEG becomes file and hash findings.
 
 ### M7 — Dossier export
 

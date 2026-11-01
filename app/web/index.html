@@ -4,13 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fennec</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon.png" type="image/png" sizes="64x64">
+  <link rel="apple-touch-icon" href="/static/logo.png">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
   <div class="app">
     <aside class="rail">
       <div class="brand">
-        <span class="mark">F</span>
+        <img class="mark" src="/static/logo.png" alt="">
         <div>
           <strong>Fennec</strong>
           <p>Local OSINT</p>
@@ -30,10 +33,16 @@
           <h1 id="case-title">Choose or create a case</h1>
           <p id="case-notes" class="notes"></p>
         </div>
-        <p class="legal">Public sources only. Results stay in the local SQLite file. Email scans contact many sites from this computer.</p>
+        <div class="top-actions">
+          <p class="legal">Public sources only. Email uses a small slow site set. Phone and file metadata stay on this machine.</p>
+          <p id="export-links" hidden>
+            <a id="export-json" href="#">JSON</a>
+            <a id="export-html" href="#">HTML dossier</a>
+          </p>
+        </div>
       </header>
       <section id="welcome" class="welcome">
-        <p>Create a case, then run Email, Phone, or Domain. Email uses Holehe. Domain pulls public DNS and registrar data.</p>
+        <p>Create a case, then run Email, Phone, Domain, or File metadata. Email and domain are throttled so this IP is less likely to get blocked. Username stays off until we can run a small set.</p>
       </section>
       <section id="modules" class="modules" hidden></section>
       <section class="split" id="results" hidden>

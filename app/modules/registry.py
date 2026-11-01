@@ -1,31 +1,27 @@
 from app.modules.base import ModuleResult, ModuleSpec
-from app.modules import domain, email, phone
+from app.modules import domain, email, metadata, phone
 
 PLANNED = [
     ModuleSpec(
         id="username",
         title="Username",
         milestone="M2",
-        summary="Profile search through Maigret.",
+        summary="Maigret hits a large number of sites. It stays off until we can run a small, slow set.",
         input_label="Username",
         placeholder="someone",
         available=False,
-        reason="Adapter is registered. Maigret runs in M2.",
-    ),
-    ModuleSpec(
-        id="metadata",
-        title="File metadata",
-        milestone="M6",
-        summary="EXIF and document metadata through ExifTool.",
-        input_label="Not available yet",
-        placeholder="",
-        available=False,
-        reason="File upload arrives with the ExifTool adapter in M6.",
+        reason="Skipped for now: a full username sweep is too many outbound requests.",
+        network=True,
     ),
 ]
 
-_SPECS = {item.id: item for item in [email.SPEC, phone.SPEC, domain.SPEC, *PLANNED]}
-_RUNNERS = {"email": email.run, "phone": phone.run, "domain": domain.run}
+_SPECS = {item.id: item for item in [email.SPEC, phone.SPEC, domain.SPEC, metadata.SPEC, *PLANNED]}
+_RUNNERS = {
+    "email": email.run,
+    "phone": phone.run,
+    "domain": domain.run,
+    "metadata": metadata.run,
+}
 
 
 def list_modules() -> list[ModuleSpec]:

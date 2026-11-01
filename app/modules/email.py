@@ -8,15 +8,52 @@ SPEC = ModuleSpec(
     id="email",
     title="Email",
     milestone="M3",
-    summary="Sites where this address appears registered. Holehe checks 120+ services from this machine.",
+    summary="A small Holehe set (about 20 sites), two at a time, so this IP is less likely to get blocked. Set FENNEC_HOLEHE_SITES=all only when you want the full list.",
     input_label="Email address",
     placeholder="name@example.com",
     available=True,
+    network=True,
 )
+
+DEFAULT_SITES = {
+    "adobe",
+    "amazon",
+    "discord",
+    "docker",
+    "flickr",
+    "github",
+    "google",
+    "gravatar",
+    "imgur",
+    "instagram",
+    "office365",
+    "patreon",
+    "pinterest",
+    "protonmail",
+    "snapchat",
+    "spotify",
+    "tumblr",
+    "twitter",
+    "wordpress",
+    "yahoo",
+}
+
+
+def select_sites(websites: list, names: set[str] | None = None) -> list:
+    wanted = names if names is not None else DEFAULT_SITES
+    if not wanted:
+        return list(websites)
+    picked = []
+    for website in websites:
+        if getattr(website, "__name__", "") in wanted:
+            picked.append(website)
+    return picked
 
 
 def scan_sites(email: str) -> list[dict]:
-    """Run Holehe. Tests replace this function so the suite stays offline."""
+    """Run Holehe slowly. Tests replace this function so the suite stays offline."""
+    import os
+
     try:
         import httpx
         import trio
@@ -30,14 +67,26 @@ def scan_sites(email: str) -> list[dict]:
 
     modules = import_submodules("holehe.modules")
     websites = get_functions(modules)
+    if os.environ.get("FENNEC_HOLEHE_SITES", "").strip().lower() != "all":
+        websites = select_sites(websites)
     out: list[dict] = []
+    limit = max(1, int(os.environ.get("FENNEC_NET_CONCURRENCY", "2")))
+    delay = max(0.0, float(os.environ.get("FENNEC_NET_DELAY", "0.4")))
 
     async def _scan() -> list[dict]:
-        client = httpx.AsyncClient(timeout=10.0)
+        limiter = trio.CapacityLimiter(limit)
+        client = httpx.AsyncClient(timeout=8.0)
+
+        async def one(website) -> None:
+            async with limiter:
+                await launch_module(website, email, client, out)
+                if delay:
+                    await trio.sleep(delay)
+
         try:
             async with trio.open_nursery() as nursery:
                 for website in websites:
-                    nursery.start_soon(launch_module, website, email, client, out)
+                    nursery.start_soon(one, website)
         finally:
             await client.aclose()
         return sorted(out, key=lambda row: str(row.get("name") or ""))

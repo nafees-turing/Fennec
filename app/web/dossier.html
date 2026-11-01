@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fennec dossier — {{ case.name }}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <style>
+    body { font-family: Georgia, serif; margin: 2rem auto; max-width: 48rem; color: #1c1917; }
+    h1, h2 { font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #d6d3d1; text-align: left; padding: 0.4rem; vertical-align: top; }
+    .muted { color: #57534e; }
+  </style>
+</head>
+<body>
+  <p class="muted">Fennec local dossier · {{ exported_at }}</p>
+  <h1>{{ case.name }}</h1>
+  <p>{{ case.notes }}</p>
+  <h2>Findings</h2>
+  <table>
+    <thead><tr><th>Kind</th><th>Value</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr></thead>
+    <tbody>
+    {% for row in case.findings %}
+      <tr>
+        <td>{{ row.kind }}</td>
+        <td>{{ row.value }}</td>
+        <td>{{ row.source }}</td>
+        <td>{{ row.confidence }}</td>
+        <td>{{ row.evidence }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <h2>Runs</h2>
+  <ul>
+    {% for run in case.runs %}
+      <li>{{ run.module_id }} · {{ run.input_value }} · {{ run.status }}{% if run.error %} · {{ run.error }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

@@ -13,6 +13,7 @@ SPEC = ModuleSpec(
     input_label="Domain or URL",
     placeholder="example.com",
     available=True,
+    network=True,
 )
 
 

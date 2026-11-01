@@ -1,14 +1,20 @@
 import asyncio
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app import db
 from app.modules.registry import execute, get_module, list_modules
+from app.netguard import NetworkGuard
 
 WEB = Path(__file__).resolve().parent / "web"
+SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
+MAX_UPLOAD = 20 * 1024 * 1024
 
 
 def ok(data: object, status_code: int = 200) -> JSONResponse:
@@ -19,11 +25,13 @@ def fail(code: str, message: str, status_code: int) -> JSONResponse:
     return JSONResponse({"error": {"code": code, "message": message}}, status_code=status_code)
 
 
-def create_app(db_path: Path | None = None) -> FastAPI:
+def create_app(db_path: Path | None = None, network_cooldown: float = 45.0) -> FastAPI:
     app = FastAPI(title="Fennec", version="0.1.0")
     app.state.db_path = db_path or Path("data") / "fennec.db"
+    app.state.network = NetworkGuard(cooldown=network_cooldown)
     db.init_db(app.state.db_path)
     app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
+    templates = Jinja2Templates(directory=str(WEB))
 
     @app.get("/", response_class=HTMLResponse)
     def home() -> str:
@@ -51,22 +59,67 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         created = db.create_case(app.state.db_path, name, notes)
         return ok(created, 201)
 
-    @app.get("/api/cases/{case_id}")
-    def case_detail(case_id: int) -> JSONResponse:
+    def load_case(case_id: int) -> dict | None:
         case = db.get_case(app.state.db_path, case_id)
         if case is None:
-            return fail("case_not_found", "No case with that id.", 404)
+            return None
         case["runs"] = db.list_runs(app.state.db_path, case_id)
         case["findings"] = db.list_findings(app.state.db_path, case_id)
+        return case
+
+    @app.get("/api/cases/{case_id}")
+    def case_detail(case_id: int) -> JSONResponse:
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
         return ok(case)
+
+    @app.get("/api/cases/{case_id}/export")
+    def export_case(case_id: int) -> JSONResponse:
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        case["exported_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return ok(case)
+
+    @app.get("/api/cases/{case_id}/export.html", response_class=HTMLResponse)
+    def export_html(request: Request, case_id: int):
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        return templates.TemplateResponse(
+            request,
+            "dossier.html",
+            {
+                "case": case,
+                "exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            },
+        )
 
     @app.post("/api/cases/{case_id}/runs")
     async def create_run(case_id: int, request: Request) -> JSONResponse:
         if db.get_case(app.state.db_path, case_id) is None:
             return fail("case_not_found", "No case with that id.", 404)
-        body = await request.json()
-        module_id = str(body.get("module", "")).strip()
-        value = str(body.get("value", "")).strip()
+        content_type = request.headers.get("content-type", "")
+        if content_type.startswith("multipart/form-data"):
+            form = await request.form()
+            module_id = str(form.get("module") or "").strip()
+            upload = form.get("file")
+            if upload is None or not getattr(upload, "filename", None):
+                return fail("invalid_input", "A file is required.", 400)
+            data = await upload.read()
+            if len(data) > MAX_UPLOAD:
+                return fail("file_too_large", "File is over 20 MB.", 400)
+            name = SAFE_NAME.sub("_", Path(str(upload.filename)).name) or "upload.bin"
+            folder = app.state.db_path.parent / "files" / str(case_id)
+            folder.mkdir(parents=True, exist_ok=True)
+            path = folder / name
+            path.write_bytes(data)
+            value = str(path)
+        else:
+            body = await request.json()
+            module_id = str(body.get("module", "")).strip()
+            value = str(body.get("value", "")).strip()
         spec = get_module(module_id)
         if spec is None:
             return fail("unknown_module", "That module is not registered.", 404)
@@ -74,7 +127,16 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             return fail("invalid_input", "A value is required.", 400)
         if not spec.available:
             return fail("module_unavailable", spec.reason, 409)
-        result = await asyncio.to_thread(execute, module_id, value)
+        key = f"{module_id}:{value.lower()}"
+        if spec.network:
+            blocked = app.state.network.begin(key)
+            if blocked:
+                return fail("network_limited", blocked, 429)
+        try:
+            result = await asyncio.to_thread(execute, module_id, value)
+        finally:
+            if spec.network:
+                app.state.network.end(key)
         run = db.add_run(
             app.state.db_path,
             case_id,

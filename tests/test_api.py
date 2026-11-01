@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 
 
-def client(tmp_path):
-    return TestClient(create_app(tmp_path / "fennec.db"))
+def client(tmp_path, network_cooldown=0):
+    return TestClient(create_app(tmp_path / "fennec.db", network_cooldown=network_cooldown))
 
 
 def test_health_and_modules(tmp_path):
@@ -18,6 +18,8 @@ def test_health_and_modules(tmp_path):
     assert by_id["email"]["available"] is True
     assert by_id["domain"]["available"] is True
     assert by_id["username"]["available"] is False
+    assert by_id["metadata"]["available"] is True
+    assert by_id["metadata"]["input_kind"] == "file"
     assert "RDAP" in by_id["domain"]["summary"]
 
 
@@ -162,8 +164,56 @@ def test_bad_domain_is_a_failed_run(tmp_path, monkeypatch):
     assert run.json()["data"]["findings"] == []
 
 
+def test_metadata_and_export(tmp_path):
+    from PIL import Image
+
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "Photo"})
+    image_path = tmp_path / "shot.jpg"
+    Image.new("RGB", (8, 8), "red").save(image_path, "JPEG")
+    with image_path.open("rb") as handle:
+        run = api.post(
+            "/api/cases/1/runs",
+            data={"module": "metadata"},
+            files={"file": ("shot.jpg", handle, "image/jpeg")},
+        )
+    assert run.status_code == 201
+    kinds = {item["kind"] for item in run.json()["data"]["findings"]}
+    assert "file" in kinds
+    assert "hash" in kinds
+    dossier = api.get("/api/cases/1/export")
+    assert dossier.status_code == 200
+    assert dossier.json()["data"]["name"] == "Photo"
+    html = api.get("/api/cases/1/export.html")
+    assert html.status_code == 200
+    assert "Photo" in html.text
+
+
+def test_repeat_domain_is_limited(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.modules.domain.lookup_dns", fake_dns)
+    monkeypatch.setattr("app.modules.domain.lookup_whois", fake_whois)
+    api = client(tmp_path, network_cooldown=60)
+    api.post("/api/cases", json={"name": "Repeat"})
+    first = api.post("/api/cases/1/runs", json={"module": "domain", "value": "example.com"})
+    second = api.post("/api/cases/1/runs", json={"module": "domain", "value": "example.com"})
+    assert first.status_code == 201
+    assert second.status_code == 429
+    assert second.json()["error"]["code"] == "network_limited"
+
+
 def test_home_shell(tmp_path):
     response = client(tmp_path).get("/")
     assert response.status_code == 200
     assert "Fennec" in response.text
+    assert "/static/favicon.svg" in response.text
     assert "/static/app.js" in response.text
+
+
+def test_select_sites_keeps_a_small_set():
+    from types import SimpleNamespace
+
+    from app.modules.email import select_sites
+
+    sites = [SimpleNamespace(__name__=name) for name in ("github", "pornhub", "twitter")]
+    names = {item.__name__ for item in select_sites(sites)}
+    assert names == {"github", "twitter"}
