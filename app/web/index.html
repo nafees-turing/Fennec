@@ -36,67 +36,64 @@
       </section>
     </aside>
 
-    <div class="stage">
-      <header class="chrome">
-        <form id="smart-form" class="smart-form">
-          <input id="smart-input" placeholder="Search this case: email, +phone, domain, IP, or handle" autocomplete="off">
-          <button type="submit">Look up</button>
-        </form>
+    <main class="workspace">
+      <header class="top">
+        <div>
+          <p class="eyebrow" id="case-kicker">No case selected</p>
+          <h1 id="case-title">Select a case to continue</h1>
+          <p id="case-notes" class="notes"></p>
+          <p id="case-stats" class="count"></p>
+        </div>
         <p id="export-links" class="export" hidden>
           <a id="export-json" href="#">JSON</a>
           <a id="export-html" href="#">HTML</a>
           <a id="export-pdf" href="#">PDF</a>
         </p>
       </header>
-      <div id="smart-chips" class="chips" aria-live="polite"></div>
 
-      <main class="workspace">
-        <header class="top">
+      <section id="welcome" class="welcome">
+        <p>Select a case. The search sits above the findings table. Tags choose which tools run. In the sidebar, Basic, Social, Addresses, Network, and Files fold open and closed.</p>
+      </section>
+
+      <section id="results" hidden>
+        <div id="search-panel" class="search-panel">
+          <form id="smart-form" class="smart-form">
+            <input id="smart-input" placeholder="Search this case: email, +phone, domain, IP, or handle" autocomplete="off">
+            <button type="submit">Look up</button>
+          </form>
+          <div id="smart-chips" class="chips" aria-live="polite"></div>
+        </div>
+        <div class="row-head">
+          <h2>Findings <span id="finding-count" class="count"></span></h2>
+          <div id="filters" class="filters"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kind</th>
+                <th>Value</th>
+                <th>Source</th>
+                <th>Confidence</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="findings"></tbody>
+          </table>
+        </div>
+        <div class="split">
           <div>
-            <p class="eyebrow" id="case-kicker">No case selected</p>
-            <h1 id="case-title">Select a case to continue</h1>
-            <p id="case-notes" class="notes"></p>
-            <p id="case-stats" class="count"></p>
+            <h2>History</h2>
+            <ol id="runs" class="runs"></ol>
           </div>
-        </header>
-
-        <section id="welcome" class="welcome">
-          <p>Select a case. Search at the top. Tags choose which tools run. In the sidebar, Basic, Social, Addresses, Network, and Files fold open and closed.</p>
-        </section>
-
-        <section id="results" hidden>
-          <div class="row-head">
-            <h2>Findings <span id="finding-count" class="count"></span></h2>
-            <div id="filters" class="filters"></div>
+          <div>
+            <h2>Links</h2>
+            <ul id="links" class="runs"></ul>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Kind</th>
-                  <th>Value</th>
-                  <th>Source</th>
-                  <th>Confidence</th>
-                  <th>Evidence</th>
-                </tr>
-              </thead>
-              <tbody id="findings"></tbody>
-            </table>
-          </div>
-          <div class="split">
-            <div>
-              <h2>History</h2>
-              <ol id="runs" class="runs"></ol>
-            </div>
-            <div>
-              <h2>Links</h2>
-              <ul id="links" class="runs"></ul>
-            </div>
-          </div>
-        </section>
-        <p id="notice" class="notice" role="status"></p>
-      </main>
-    </div>
+        </div>
+      </section>
+      <p id="notice" class="notice" role="status"></p>
+    </main>
   </div>
   <script src="/static/app.js"></script>
 </body>
