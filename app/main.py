@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -73,7 +74,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             return fail("invalid_input", "A value is required.", 400)
         if not spec.available:
             return fail("module_unavailable", spec.reason, 409)
-        result = execute(module_id, value)
+        result = await asyncio.to_thread(execute, module_id, value)
         run = db.add_run(
             app.state.db_path,
             case_id,

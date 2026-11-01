@@ -22,7 +22,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
   width: 2.2rem; height: 2.2rem; display: grid; place-items: center;
   border: 1px solid var(--accent); color: var(--accent); font-family: var(--font); font-size: 1.3rem;
 }
-.new-case { display: flex; gap: 0.4rem; margin: 1.25rem 0; }
+.new-case { display: flex; flex-direction: column; gap: 0.4rem; margin: 1.25rem 0; }
+.new-case button { align-self: start; }
 input, button, textarea {
   font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
 }
@@ -53,6 +54,14 @@ th { color: var(--muted); font-weight: 600; font-size: 0.75rem; letter-spacing: 
 .failed { color: var(--bad); }
 .notice { min-height: 1.2rem; color: var(--accent); }
 .empty { color: var(--muted); }
+.notes, .welcome, .count { color: var(--muted); }
+.welcome { border: 1px dashed var(--line); padding: 1.25rem; margin-bottom: 1.25rem; }
+.row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+.filters { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.filters button { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+.filters button.on { border-color: var(--accent); color: var(--accent); }
+.module.locked { opacity: 0.7; }
+.busy { cursor: progress; }
 @media (max-width: 900px) {
   .app, .split, .top { display: block; }
   .rail { border-right: 0; border-bottom: 1px solid var(--line); }

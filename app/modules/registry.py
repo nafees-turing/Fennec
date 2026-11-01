@@ -1,5 +1,5 @@
 from app.modules.base import ModuleResult, ModuleSpec
-from app.modules import phone
+from app.modules import email, phone
 
 PLANNED = [
     ModuleSpec(
@@ -11,16 +11,6 @@ PLANNED = [
         placeholder="someone",
         available=False,
         reason="Adapter is registered. Maigret runs in M2.",
-    ),
-    ModuleSpec(
-        id="email",
-        title="Email",
-        milestone="M3",
-        summary="Sites where an email is registered, through Holehe.",
-        input_label="Email",
-        placeholder="name@example.com",
-        available=False,
-        reason="Adapter is registered. Holehe runs in M3.",
     ),
     ModuleSpec(
         id="domain",
@@ -44,8 +34,8 @@ PLANNED = [
     ),
 ]
 
-_SPECS = {item.id: item for item in [phone.SPEC, *PLANNED]}
-_RUNNERS = {"phone": phone.run}
+_SPECS = {item.id: item for item in [email.SPEC, phone.SPEC, *PLANNED]}
+_RUNNERS = {"email": email.run, "phone": phone.run}
 
 
 def list_modules() -> list[ModuleSpec]:

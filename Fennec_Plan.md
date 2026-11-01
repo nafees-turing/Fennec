@@ -115,11 +115,11 @@ Empty app that runs locally.
 
 ### M3 — Email
 
-- Adapter around Holehe for one email.
-- Same pattern as M2: fake in tests, real tool when installed.
-- Findings attach to the same case.
+- Adapter around Holehe for one email. Real scans call 120+ sites from this machine.
+- Tests inject a fake scanner so pytest stays offline.
+- Store the email, each registered site as `account`, and rate-limited sites as `rate_limit`. Negative results are dropped so the case is readable.
 
-**Test:** fake Holehe-style results persist and show on the case.
+**Test:** fake Holehe-style results persist and show on the case. A bad address fails the run.
 
 ### M4 — Domain
 

@@ -1,4 +1,4 @@
-const state = { caseId: null, modules: [] };
+const state = { caseId: null, modules: [], findings: [], filter: "all" };
 
 const notice = document.querySelector("#notice");
 const caseList = document.querySelector("#case-list");
@@ -30,7 +30,7 @@ async function loadCases(selectId) {
     empty.className = "empty";
     empty.textContent = "No cases yet.";
     caseList.append(empty);
-    return;
+    return cases;
   }
   for (const item of cases) {
     const button = document.createElement("button");
@@ -40,22 +40,56 @@ async function loadCases(selectId) {
     button.addEventListener("click", () => openCase(item.id));
     caseList.append(button);
   }
-  if (selectId) await openCase(selectId);
+  const open = selectId || state.caseId || cases[0].id;
+  if (open && open !== state.caseId) await openCase(open);
+  return cases;
 }
 
 async function openCase(id) {
   state.caseId = id;
   const caseFile = await api(`/api/cases/${id}`);
+  document.querySelector("#welcome").hidden = true;
+  document.querySelector("#results").hidden = false;
   document.querySelector("#case-kicker").textContent = `Case ${caseFile.id}`;
   document.querySelector("#case-title").textContent = caseFile.name;
-  renderFindings(caseFile.findings);
+  document.querySelector("#case-notes").textContent = caseFile.notes || "";
+  state.findings = caseFile.findings;
+  renderFindings();
   renderRuns(caseFile.runs);
   renderModules();
-  await loadCases();
+  highlightCase();
 }
 
-function renderFindings(rows) {
+function highlightCase() {
+  for (const button of caseList.querySelectorAll("button")) {
+    button.classList.toggle("active", button.textContent && true);
+  }
+  api("/api/cases").then((cases) => {
+    const buttons = [...caseList.querySelectorAll("button")];
+    buttons.forEach((button, index) => {
+      button.classList.toggle("active", cases[index] && cases[index].id === state.caseId);
+    });
+  });
+}
+
+function renderFindings() {
+  const rows = state.findings.filter((row) => state.filter === "all" || row.kind === state.filter);
   findingsBody.replaceChildren();
+  document.querySelector("#finding-count").textContent = `${rows.length} shown · ${state.findings.length} total`;
+  const kinds = ["all", ...new Set(state.findings.map((row) => row.kind))];
+  const filters = document.querySelector("#filters");
+  filters.replaceChildren();
+  for (const kind of kinds) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = kind;
+    button.className = kind === state.filter ? "on" : "";
+    button.addEventListener("click", () => {
+      state.filter = kind;
+      renderFindings();
+    });
+    filters.append(button);
+  }
   if (!rows.length) {
     const tr = document.createElement("tr");
     tr.innerHTML = '<td class="empty" colspan="5">No findings yet.</td>';
@@ -100,7 +134,7 @@ function renderModules() {
   host.replaceChildren();
   for (const module of state.modules) {
     const card = document.createElement("article");
-    card.className = "module";
+    card.className = module.available ? "module" : "module locked";
     const title = document.createElement("h3");
     title.textContent = `${module.title} · ${module.milestone}`;
     const summary = document.createElement("small");
@@ -120,6 +154,9 @@ function renderModules() {
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         button.disabled = true;
+        document.body.classList.add("busy");
+        const wait = module.id === "email" ? "Email scan in progress. This can take about a minute." : "";
+        setNotice(wait);
         try {
           await api(`/api/cases/${state.caseId}/runs`, {
             method: "POST",
@@ -132,6 +169,7 @@ function renderModules() {
           setNotice(error.message);
         } finally {
           button.disabled = false;
+          document.body.classList.remove("busy");
         }
       });
       card.append(form);
@@ -146,7 +184,7 @@ document.querySelector("#new-case").addEventListener("submit", async (event) => 
   try {
     const created = await api("/api/cases", {
       method: "POST",
-      body: JSON.stringify({ name: form.name.value, notes: "" }),
+      body: JSON.stringify({ name: form.name.value, notes: form.notes.value }),
     });
     form.reset();
     setNotice("");

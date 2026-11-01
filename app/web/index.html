@@ -18,6 +18,7 @@
       </div>
       <form id="new-case" class="new-case">
         <input name="name" placeholder="New case name" required maxlength="120">
+        <input name="notes" placeholder="Optional notes">
         <button type="submit">Create</button>
       </form>
       <nav id="case-list" class="case-list" aria-label="Cases"></nav>
@@ -27,13 +28,20 @@
         <div>
           <p class="eyebrow" id="case-kicker">No case open</p>
           <h1 id="case-title">Choose or create a case</h1>
+          <p id="case-notes" class="notes"></p>
         </div>
-        <p class="legal">Public sources only. Results stay in the local SQLite file.</p>
+        <p class="legal">Public sources only. Results stay in the local SQLite file. Email scans contact many sites from this computer.</p>
       </header>
+      <section id="welcome" class="welcome">
+        <p>Create a case, then run Email or Phone. Email uses Holehe and stores only registered or rate-limited sites.</p>
+      </section>
       <section id="modules" class="modules" hidden></section>
-      <section class="split">
+      <section class="split" id="results" hidden>
         <div>
-          <h2>Findings</h2>
+          <div class="row-head">
+            <h2>Findings <span id="finding-count" class="count"></span></h2>
+            <div id="filters" class="filters"></div>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
