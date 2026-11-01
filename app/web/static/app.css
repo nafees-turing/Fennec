@@ -118,10 +118,17 @@ svg.icon { fill: currentColor; stroke: none; }
   font-weight: 500;
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   border-radius: 6px;
+}
+.nav-list button > span {
+  text-align: left;
+  flex: 0 1 auto;
+}
+.nav-list .tool-group {
+  justify-content: space-between;
 }
 .nav-list button:hover { background: #152033; }
 .nav-list button.active, .nav-list button.related {
@@ -161,6 +168,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   border: 1px solid transparent;
   font-weight: 500;
 }
+.nav-list button { justify-content: flex-start; }
+.nav-list .tool-group { justify-content: space-between; }
 .tool-group { font-weight: 650; }
 .tool-group.hue-basic { color: var(--hue-basic); }
 .tool-group.hue-social { color: var(--hue-social); }
