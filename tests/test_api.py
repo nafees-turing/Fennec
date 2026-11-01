@@ -614,9 +614,21 @@ def test_home_shell(tmp_path):
     assert "/static/favicon.svg" in response.text
     assert 'id="tool-list"' in response.text
     assert 'id="smart-input"' in response.text
-    page = client(tmp_path).get("/cases/1")
+    api = client(tmp_path)
+    page = api.get("/cases/1")
     assert page.status_code == 200
     assert "Fennec" in page.text
+    settings = api.get("/api/settings")
+    assert settings.status_code == 200
+    assert "email" in settings.json()["data"]["default_modules"]
+    assert "internetdb" not in settings.json()["data"]["default_modules"]
+    saved = api.put("/api/settings", json={"default_modules": ["phone"]})
+    assert saved.json()["data"]["default_modules"] == ["phone"]
+    again = api.get("/api/settings")
+    assert again.json()["data"]["default_modules"] == ["phone"]
+    html = api.get("/settings")
+    assert html.status_code == 200
+    assert 'id="settings-form"' in html.text
     assert "/static/app.js" in response.text
 
 

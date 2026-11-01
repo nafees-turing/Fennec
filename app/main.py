@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import uuid
 from datetime import datetime, timezone
@@ -13,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from app import correlate, db, detect as detect_mod, profiles as profiles_mod
 from app.modules.base import ModuleResult
-from app.modules.registry import execute, get_module, list_modules
+from app.modules.registry import DEFAULT_MODULES, execute, get_module, list_modules
 from app.netguard import NetworkGuard
 
 WEB = Path(__file__).resolve().parent / "web"
@@ -57,6 +58,10 @@ def create_app(
     def profile_page(case_id: int, profile_id: int) -> str:
         return spa()
 
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_page() -> str:
+        return spa()
+
     @app.get("/api/health")
     def health() -> JSONResponse:
         return ok({"status": "ok", "app": "Fennec", "storage": "sqlite", "version": app.version})
@@ -68,6 +73,34 @@ def create_app(
     @app.get("/api/detect")
     def detect(q: str = "") -> JSONResponse:
         return ok(detect_mod.classify(q))
+
+    def load_defaults() -> list[str]:
+        raw = db.get_setting(app.state.db_path, "default_modules")
+        if not raw:
+            return list(DEFAULT_MODULES)
+        try:
+            values = json.loads(raw)
+        except json.JSONDecodeError:
+            return list(DEFAULT_MODULES)
+        if not isinstance(values, list):
+            return list(DEFAULT_MODULES)
+        known = {item.id for item in list_modules()}
+        return [str(item) for item in values if str(item) in known]
+
+    @app.get("/api/settings")
+    def get_settings() -> JSONResponse:
+        return ok({"default_modules": load_defaults(), "personal_defaults": list(DEFAULT_MODULES)})
+
+    @app.put("/api/settings")
+    async def put_settings(request: Request) -> JSONResponse:
+        body = await request.json()
+        values = body.get("default_modules")
+        if not isinstance(values, list):
+            return fail("invalid_settings", "default_modules must be a list of tool ids.", 400)
+        known = {item.id for item in list_modules()}
+        chosen = [str(item) for item in values if str(item) in known]
+        db.set_setting(app.state.db_path, "default_modules", json.dumps(chosen))
+        return ok({"default_modules": chosen, "personal_defaults": list(DEFAULT_MODULES)})
 
     @app.get("/api/cases")
     def cases() -> JSONResponse:
@@ -184,11 +217,11 @@ def create_app(
         if not classified["matches"]:
             return fail("unrecognized", "Could not tell if that is an email, phone, domain, IP, or handle.", 400)
         wanted = body.get("modules")
-        if isinstance(wanted, list) and wanted:
+        if isinstance(wanted, list):
             allowed = {str(item) for item in wanted}
             classified["matches"] = [item for item in classified["matches"] if item["module"] in allowed]
             if not classified["matches"]:
-                return fail("no_tools", "No selected tools apply to that value.", 400)
+                return fail("no_tools", "No selected tools apply to that value. Turn on tags or change Settings.", 400)
         lookup_id = uuid.uuid4().hex
         runs = []
         for item in classified["matches"]:

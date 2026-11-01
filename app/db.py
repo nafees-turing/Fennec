@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS findings (
     confidence TEXT NOT NULL,
     evidence TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -47,6 +52,20 @@ def init_db(path: Path) -> None:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)").fetchall()}
         if "lookup_id" not in cols:
             conn.execute("ALTER TABLE runs ADD COLUMN lookup_id TEXT")
+
+
+def get_setting(path: Path, key: str) -> str | None:
+    with connect(path) as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return None if row is None else str(row["value"])
+
+
+def set_setting(path: Path, key: str, value: str) -> None:
+    with connect(path) as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
 
 
 def create_case(path: Path, name: str, notes: str) -> dict:

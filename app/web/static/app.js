@@ -6,6 +6,8 @@ const state = {
   matches: [],
   selected: new Set(),
   openGroups: loadOpenGroups(),
+  defaults: new Set(),
+  personalDefaults: [],
 };
 
 const notice = document.querySelector("#notice");
@@ -91,12 +93,14 @@ function showWorkspace(open) {
   document.querySelector("#results").hidden = !open;
   document.querySelector("#export-links").hidden = !open;
   document.querySelector("#profile-page").hidden = true;
+  document.querySelector("#settings-page").hidden = true;
 }
 
 function route() {
+  if (location.pathname === "/settings") return { settings: true, caseId: state.caseId, profileId: null };
   const match = location.pathname.match(/^\/cases\/(\d+)(?:\/profiles\/(\d+))?$/);
-  if (!match) return { caseId: state.caseId, profileId: null };
-  return { caseId: Number(match[1]), profileId: match[2] ? Number(match[2]) : null };
+  if (!match) return { settings: false, caseId: state.caseId, profileId: null };
+  return { settings: false, caseId: Number(match[1]), profileId: match[2] ? Number(match[2]) : null };
 }
 
 function go(path) {
@@ -105,8 +109,12 @@ function go(path) {
 }
 
 async function renderRoute() {
-  const { caseId, profileId } = route();
+  const { caseId, profileId, settings } = route();
   await loadCases(caseId || state.caseId, true);
+  if (settings) {
+    showSettingsPage();
+    return;
+  }
   if (profileId && caseId) {
     await showProfilePage(caseId, profileId);
     return;
@@ -337,7 +345,11 @@ function renderChips() {
     chip.classList.add(`hue-${module ? module.category : "search"}`);
     chip.append(icon(TOOL_ICONS[item.module] || "dot", module ? module.category : "search"));
     chip.append(document.createTextNode(` ${item.label}: ${item.value}`));
-    chip.title = state.selected.has(item.module) ? "Click to skip this tool" : "Click to include this tool";
+    chip.title = state.selected.has(item.module)
+      ? "On for this search"
+      : state.defaults.has(item.module)
+        ? "Default tool — click to include"
+        : "Off by default — click to include this time";
     chip.addEventListener("click", () => {
       if (state.selected.has(item.module)) state.selected.delete(item.module);
       else state.selected.add(item.module);
@@ -440,6 +452,7 @@ async function showProfilePage(caseId, profileId) {
   document.querySelector("#welcome").hidden = true;
   document.querySelector("#results").hidden = true;
   document.querySelector("#export-links").hidden = true;
+  document.querySelector("#settings-page").hidden = true;
   document.querySelector("#profile-page").hidden = false;
   document.querySelector("#back-to-case").href = `/cases/${caseId}`;
   const heading = document.querySelector("#case-title");
@@ -564,7 +577,7 @@ document.querySelector("#smart-input").addEventListener("input", () => {
     try {
       const result = await api(`/api/detect?q=${encodeURIComponent(value)}`);
       state.matches = result.matches || [];
-      state.selected = new Set(state.matches.map((item) => item.module));
+      state.selected = new Set(state.matches.filter((item) => state.defaults.has(item.module)).map((item) => item.module));
       for (const item of state.matches) {
         const module = state.modules.find((row) => row.id === item.module);
         if (module) state.openGroups.add(module.category);
@@ -586,6 +599,10 @@ document.querySelector("#smart-form").addEventListener("submit", async (event) =
   const value = document.querySelector("#smart-input").value.trim();
   const button = event.currentTarget.querySelector("button");
   const modules = [...state.selected];
+  if (!modules.length) {
+    setNotice("No default tools match this value. Turn on tags or open Settings.");
+    return;
+  }
   button.disabled = true;
   document.body.classList.add("busy");
   setNotice("Running selected tags only.");
@@ -623,6 +640,85 @@ document.querySelector("#new-case").addEventListener("submit", async (event) => 
   }
 });
 
+function showSettingsPage() {
+  document.querySelector("#welcome").hidden = true;
+  document.querySelector("#results").hidden = true;
+  document.querySelector("#export-links").hidden = true;
+  document.querySelector("#profile-page").hidden = true;
+  document.querySelector("#settings-page").hidden = false;
+  document.querySelector("#case-kicker").textContent = "Preferences";
+  document.querySelector("#case-title").textContent = "Search defaults";
+  document.querySelector("#case-notes").textContent = "Personal tools are on by default. Network and crypto stay off until you enable them.";
+  document.querySelector("#case-stats").textContent = "";
+  renderSettingsForm();
+}
+
+function renderSettingsForm() {
+  const form = document.querySelector("#settings-form");
+  form.replaceChildren();
+  for (const group of GROUPS) {
+    const items = state.modules.filter((item) => item.category === group.id);
+    if (!items.length) continue;
+    const box = document.createElement("fieldset");
+    box.className = "settings-group";
+    const heading = document.createElement("h3");
+    heading.className = `hue-${group.id}`;
+    heading.append(icon(group.icon, group.id), document.createTextNode(` ${group.label}`));
+    box.append(heading);
+    for (const module of items) {
+      const label = document.createElement("label");
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.name = "module";
+      check.value = module.id;
+      check.checked = state.defaults.has(module.id);
+      label.append(check, icon(TOOL_ICONS[module.id] || group.icon, group.id), document.createTextNode(` ${module.title}`));
+      box.append(label);
+    }
+    form.append(box);
+  }
+}
+
+async function loadSettings() {
+  const data = await api("/api/settings");
+  state.personalDefaults = data.personal_defaults || [];
+  state.defaults = new Set(data.default_modules || state.personalDefaults);
+}
+
+document.querySelector("#settings-link").addEventListener("click", (event) => {
+  event.preventDefault();
+  go("/settings");
+});
+
+document.querySelector("#settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const chosen = [...event.currentTarget.querySelectorAll("input[name=module]:checked")].map((item) => item.value);
+  try {
+    const saved = await api("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ default_modules: chosen }),
+    });
+    state.defaults = new Set(saved.default_modules);
+    setNotice("Defaults saved. New searches use these tools.");
+  } catch (error) {
+    setNotice(error.message);
+  }
+});
+
+document.querySelector("#reset-defaults").addEventListener("click", async () => {
+  try {
+    const saved = await api("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ default_modules: state.personalDefaults }),
+    });
+    state.defaults = new Set(saved.default_modules);
+    renderSettingsForm();
+    setNotice("Reset to personal defaults.");
+  } catch (error) {
+    setNotice(error.message);
+  }
+});
+
 document.querySelector("#back-to-case").addEventListener("click", (event) => {
   event.preventDefault();
   if (state.caseId) go(`/cases/${state.caseId}`);
@@ -635,15 +731,10 @@ window.addEventListener("popstate", () => {
 
 async function boot() {
   state.modules = await api("/api/modules");
+  await loadSettings();
   renderTools();
   renderChips();
-  const { caseId, profileId } = route();
-  if (profileId && caseId) {
-    await loadCases(caseId);
-    await showProfilePage(caseId, profileId);
-    return;
-  }
-  await loadCases(caseId || state.caseId);
+  await renderRoute();
 }
 
 boot().catch((error) => setNotice(error.message));

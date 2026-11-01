@@ -50,6 +50,8 @@
         <nav id="case-list" class="nav-list" aria-label="Cases"></nav>
       </section>
 
+      <p class="rail-link"><a id="settings-link" href="/settings">Settings</a></p>
+
       <section class="rail-block" id="tool-rail">
         <h2 class="hue-search"><svg class="icon hue-search"><use href="#i-search"/></svg> Tools</h2>
         <p class="hint">Click a tool to pin it as a search tag.</p>
@@ -74,6 +76,15 @@
 
       <section id="welcome" class="welcome">
         <p>Select a case. Search above. Profiles on this page are summaries; open one for the full combined person. URLs are links.</p>
+      </section>
+
+      <section id="settings-page" hidden>
+        <p class="notes">Tools checked here run by default when a paste matches them. Unchecked tools still appear as tags so you can turn them on for one search.</p>
+        <form id="settings-form" class="settings-form"></form>
+        <p class="settings-actions">
+          <button type="submit" form="settings-form">Save defaults</button>
+          <button type="button" id="reset-defaults" class="secondary">Reset to personal defaults</button>
+        </p>
       </section>
 
       <section id="profile-page" hidden>

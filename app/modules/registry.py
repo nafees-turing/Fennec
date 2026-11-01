@@ -39,6 +39,18 @@ from app.modules import (
     wikipedia,
 )
 
+DEFAULT_MODULES = [
+    "email",
+    "name",
+    "person",
+    "username",
+    "phone",
+    "wikipedia",
+    "github",
+    "gravatar",
+    "pgp",
+]
+
 CATEGORIES = [
     ("basic", "Basic"),
     ("social", "Social"),
