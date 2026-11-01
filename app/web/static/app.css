@@ -238,6 +238,33 @@ table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.5rem 0.4rem; vertical-align: top; }
 th { color: var(--muted); font-weight: 650; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.lookups { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.4rem; }
+.lookup-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 0.85rem 1rem 1rem;
+}
+.lookup-head { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; margin-bottom: 0.7rem; }
+.lookup-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.run-block { margin-top: 0.75rem; }
+.run-block h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.run-block h4 span { margin-left: auto; font-weight: 500; font-size: 0.78rem; }
 .runs { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem; }
 .runs li { border-bottom: 1px solid var(--line); padding-bottom: 0.4rem; overflow-wrap: anywhere; }
 .ok { color: var(--ok); }

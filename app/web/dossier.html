@@ -16,31 +16,32 @@
   <p class="muted">Fennec local dossier · {{ exported_at }}</p>
   <h1>{{ case.name }}</h1>
   <p>{{ case.notes }}</p>
-  <h2>Findings</h2>
-  <table>
-    <thead><tr><th>Kind</th><th>Value</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr></thead>
-    <tbody>
-    {% for row in case.findings %}
-      <tr>
-        <td>{{ row.kind }}</td>
-        <td>{{ row.value }}</td>
-        <td>{{ row.source }}</td>
-        <td>{{ row.confidence }}</td>
-        <td>{{ row.evidence }}</td>
-      </tr>
+  <h2>Searches</h2>
+  {% for lookup in case.lookups %}
+    <h3>{{ lookup.query }}</h3>
+    <p class="muted">{{ lookup.created_at }} · {{ lookup.runs|length }} tools</p>
+    {% for run in lookup.runs %}
+      <p><strong>{{ run.module_id }}</strong> · {{ run.status }}{% if run.error %} · {{ run.error }}{% endif %}</p>
+      <table>
+        <thead><tr><th>Kind</th><th>Value</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr></thead>
+        <tbody>
+        {% for row in run.findings %}
+          <tr>
+            <td>{{ row.kind }}</td>
+            <td>{{ row.value }}</td>
+            <td>{{ row.source }}</td>
+            <td>{{ row.confidence }}</td>
+            <td>{{ row.evidence }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
     {% endfor %}
-    </tbody>
-  </table>
+  {% endfor %}
   <h2>Links</h2>
   <ul>
     {% for row in case.links %}
       <li>{{ row.kind }} · {{ row.value }} · {{ row.count }} findings</li>
-    {% endfor %}
-  </ul>
-  <h2>Runs</h2>
-  <ul>
-    {% for run in case.runs %}
-      <li>{{ run.module_id }} · {{ run.input_value }} · {{ run.status }}{% if run.error %} · {{ run.error }}{% endif %}</li>
     {% endfor %}
   </ul>
 </body>

@@ -11,8 +11,7 @@ const state = {
 const notice = document.querySelector("#notice");
 const caseList = document.querySelector("#case-list");
 const toolList = document.querySelector("#tool-list");
-const findingsBody = document.querySelector("#findings");
-const runsList = document.querySelector("#runs");
+const lookupsHost = document.querySelector("#lookups");
 
 async function api(path, options = {}) {
   const headers = { Accept: "application/json", ...(options.headers || {}) };
@@ -110,8 +109,7 @@ async function openCase(id) {
   document.querySelector("#case-stats").textContent =
     `${caseFile.findings.length} findings · ${caseFile.runs.length} lookups · ${ (caseFile.links || []).length } links`;
   state.findings = caseFile.findings;
-  renderFindings();
-  renderRuns(caseFile.runs);
+  renderLookups(caseFile.lookups || []);
   renderLinks(caseFile.links || []);
   paintCaseList();
 }
@@ -293,29 +291,16 @@ function renderChips() {
   renderTools();
 }
 
-function renderFindings() {
-  const rows = state.findings.filter((row) => state.filter === "all" || row.kind === state.filter);
-  findingsBody.replaceChildren();
-  document.querySelector("#finding-count").textContent = `${rows.length} shown · ${state.findings.length} total`;
-  const kinds = ["all", ...new Set(state.findings.map((row) => row.kind))];
-  const filters = document.querySelector("#filters");
-  filters.replaceChildren();
-  for (const kind of kinds) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = kind;
-    button.className = kind === state.filter ? "on" : "";
-    button.addEventListener("click", () => {
-      state.filter = kind;
-      renderFindings();
-    });
-    filters.append(button);
-  }
+function findingsTable(rows) {
+  const wrap = document.createElement("div");
+  wrap.className = "table-wrap";
+  const table = document.createElement("table");
+  table.innerHTML = "<thead><tr><th>Kind</th><th>Value</th><th>Source</th><th>Confidence</th><th>Evidence</th></tr></thead>";
+  const body = document.createElement("tbody");
   if (!rows.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = '<td class="empty" colspan="5">Nothing on this case yet. Use the search bar.</td>';
-    findingsBody.append(tr);
-    return;
+    tr.innerHTML = '<td class="empty" colspan="5">No findings from this tool.</td>';
+    body.append(tr);
   }
   for (const row of rows) {
     const tr = document.createElement("tr");
@@ -331,29 +316,54 @@ function renderFindings() {
       }
       tr.append(td);
     }
-    findingsBody.append(tr);
+    body.append(tr);
   }
+  table.append(body);
+  wrap.append(table);
+  return wrap;
 }
 
-function renderRuns(rows) {
-  runsList.replaceChildren();
-  if (!rows.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = "No lookups yet.";
-    runsList.append(li);
+function renderLookups(lookups) {
+  lookupsHost.replaceChildren();
+  const total = lookups.reduce((sum, item) => sum + item.runs.reduce((n, run) => n + (run.findings || []).length, 0), 0);
+  document.querySelector("#finding-count").textContent = `${lookups.length} searches · ${total} findings`;
+  if (!lookups.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No searches on this case yet. Use the bar above.";
+    lookupsHost.append(empty);
     return;
   }
-  for (const run of rows) {
-    const li = document.createElement("li");
-    const title = document.createElement("strong");
-    title.textContent = `${run.module_id} · ${run.input_value}`;
-    const meta = document.createElement("span");
-    meta.className = run.status;
-    meta.textContent = run.error ? `${run.status}: ${run.error}` : `${run.status} · ${run.created_at || ""}`;
-    li.append(title, document.createElement("br"), meta);
-    runsList.append(li);
-  }
+  lookups.forEach((lookup, index) => {
+    const card = document.createElement("article");
+    card.className = "lookup-card";
+    const head = document.createElement("header");
+    head.className = "lookup-head";
+    const title = document.createElement("h3");
+    title.append(icon("search", "search"));
+    title.append(document.createTextNode(` Search ${lookups.length - index} · ${lookup.query}`));
+    const meta = document.createElement("p");
+    meta.className = "count";
+    meta.textContent = `${lookup.runs.length} tools · ${lookup.created_at || ""}`;
+    head.append(title, meta);
+    card.append(head);
+    for (const run of lookup.runs) {
+      const block = document.createElement("section");
+      block.className = "run-block";
+      const label = document.createElement("h4");
+      const module = state.modules.find((item) => item.id === run.module_id);
+      label.append(icon(TOOL_ICONS[run.module_id] || "dot", module ? module.category : "search"));
+      label.append(document.createTextNode(` ${module ? module.title : run.module_id}`));
+      const status = document.createElement("span");
+      status.className = run.status || "ok";
+      status.textContent = run.error ? `${run.status}: ${run.error}` : run.status;
+      label.append(status);
+      block.append(label);
+      block.append(findingsTable(run.findings || []));
+      card.append(block);
+    }
+    lookupsHost.append(card);
+  });
 }
 
 function renderLinks(rows) {

@@ -73,7 +73,7 @@
       </header>
 
       <section id="welcome" class="welcome">
-        <p>Select a case. The search sits above the findings table. Tags choose which tools run. In the sidebar, Basic, Social, Addresses, Network, Crypto, and Files fold open and closed.</p>
+        <p>Select a case. Search above. Each lookup is its own card on the case, with that query’s tools and findings kept together.</p>
       </section>
 
       <section id="results" hidden>
@@ -85,32 +85,12 @@
           <div id="smart-chips" class="chips" aria-live="polite"></div>
         </div>
         <div class="row-head">
-          <h2 class="hue-search"><svg class="icon hue-search"><use href="#i-findings"/></svg> Findings <span id="finding-count" class="count"></span></h2>
-          <div id="filters" class="filters"></div>
+          <h2 class="hue-search"><svg class="icon hue-search"><use href="#i-findings"/></svg> Searches <span id="finding-count" class="count"></span></h2>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Kind</th>
-                <th>Value</th>
-                <th>Source</th>
-                <th>Confidence</th>
-                <th>Evidence</th>
-              </tr>
-            </thead>
-            <tbody id="findings"></tbody>
-          </table>
-        </div>
-        <div class="split">
-          <div>
-            <h2 class="hue-social"><svg class="icon hue-social"><use href="#i-history"/></svg> History</h2>
-            <ol id="runs" class="runs"></ol>
-          </div>
-          <div>
-            <h2 class="hue-addresses"><svg class="icon hue-addresses"><use href="#i-links"/></svg> Links</h2>
-            <ul id="links" class="runs"></ul>
-          </div>
+        <div id="lookups" class="lookups"></div>
+        <div>
+          <h2 class="hue-addresses"><svg class="icon hue-addresses"><use href="#i-links"/></svg> Links</h2>
+          <ul id="links" class="runs"></ul>
         </div>
       </section>
       <p id="notice" class="notice" role="status"></p>

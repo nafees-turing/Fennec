@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS runs (
     status TEXT NOT NULL,
     input_value TEXT NOT NULL,
     error TEXT,
+    lookup_id TEXT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -43,6 +44,9 @@ def connect(path: Path) -> sqlite3.Connection:
 def init_db(path: Path) -> None:
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)").fetchall()}
+        if "lookup_id" not in cols:
+            conn.execute("ALTER TABLE runs ADD COLUMN lookup_id TEXT")
 
 
 def create_case(path: Path, name: str, notes: str) -> dict:
@@ -74,14 +78,15 @@ def add_run(
     input_value: str,
     error: str | None,
     findings: list[dict],
+    lookup_id: str | None = None,
 ) -> dict:
     with connect(path) as conn:
         cur = conn.execute(
             """
-            INSERT INTO runs (case_id, module_id, status, input_value, error)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO runs (case_id, module_id, status, input_value, error, lookup_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (case_id, module_id, status, input_value, error),
+            (case_id, module_id, status, input_value, error, lookup_id),
         )
         run_id = cur.lastrowid
         for finding in findings:

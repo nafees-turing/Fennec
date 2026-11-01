@@ -571,6 +571,10 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert run.status_code == 201
     assert run.json()["data"]["detected"] == "phone"
     assert run.json()["data"]["runs"][0]["status"] == "ok"
+    case = api.get("/api/cases/1").json()["data"]
+    assert len(case["lookups"]) == 1
+    assert case["lookups"][0]["query"] == "+41446681800"
+    assert case["lookups"][0]["runs"][0]["module_id"] == "phone"
     skipped = api.post("/api/cases/1/lookup", json={"value": "+41446681800", "modules": ["email"]})
     assert skipped.status_code == 400
 

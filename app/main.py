@@ -1,5 +1,6 @@
 import asyncio
 import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -78,6 +79,7 @@ def create_app(
         case["runs"] = db.list_runs(app.state.db_path, case_id)
         case["findings"] = db.list_findings(app.state.db_path, case_id)
         case["links"] = correlate.links(case["findings"])
+        case["lookups"] = group_lookups(case["runs"], case["findings"])
         return case
 
     @app.get("/api/cases/{case_id}")
@@ -153,7 +155,7 @@ def create_app(
             return fail("invalid_input", "A value is required.", 400)
         if not spec.available:
             return fail("module_unavailable", spec.reason, 409)
-        run, error = await run_module(app, case_id, module_id, value)
+        run, error = await run_module(app, case_id, module_id, value, lookup_id=uuid.uuid4().hex)
         if error:
             return fail(error["code"], error["message"], error["status"])
         return ok(run, 201)
@@ -175,9 +177,10 @@ def create_app(
             classified["matches"] = [item for item in classified["matches"] if item["module"] in allowed]
             if not classified["matches"]:
                 return fail("no_tools", "No selected tools apply to that value.", 400)
+        lookup_id = uuid.uuid4().hex
         runs = []
         for item in classified["matches"]:
-            run, error = await run_module(app, case_id, item["module"], item["value"])
+            run, error = await run_module(app, case_id, item["module"], item["value"], lookup_id=lookup_id)
             if error:
                 runs.append(
                     {
@@ -197,7 +200,29 @@ def create_app(
     return app
 
 
-async def run_module(app: FastAPI, case_id: int, module_id: str, value: str):
+def group_lookups(runs: list[dict], findings: list[dict]) -> list[dict]:
+    by_run: dict[int, list[dict]] = {}
+    for row in findings:
+        by_run.setdefault(row["run_id"], []).append(row)
+    groups: dict[str, dict] = {}
+    order: list[str] = []
+    for run in runs:
+        lid = run.get("lookup_id") or f"run-{run['id']}"
+        if lid not in groups:
+            groups[lid] = {
+                "id": lid,
+                "query": run.get("input_value") or "",
+                "created_at": run.get("created_at") or "",
+                "runs": [],
+            }
+            order.append(lid)
+        item = dict(run)
+        item["findings"] = by_run.get(run["id"], [])
+        groups[lid]["runs"].append(item)
+    return [groups[key] for key in order]
+
+
+async def run_module(app: FastAPI, case_id: int, module_id: str, value: str, lookup_id: str | None = None):
     spec = get_module(module_id)
     if spec is None or not spec.available:
         return None, {"code": "module_unavailable", "message": "That module cannot run.", "status": 409}
@@ -224,6 +249,7 @@ async def run_module(app: FastAPI, case_id: int, module_id: str, value: str):
         value,
         result.error,
         [item.as_dict() for item in result.findings],
+        lookup_id=lookup_id,
     )
     return run, None
 
