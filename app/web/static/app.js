@@ -110,13 +110,6 @@ function renderCases() {
   }
   if (query) {
     rows = rows.filter((item) => item.name.toLowerCase().includes(query));
-  } else {
-    const top = rows.slice(0, 5);
-    if (state.caseId && !top.some((item) => item.id === state.caseId)) {
-      const current = rows.find((item) => item.id === state.caseId);
-      if (current) top.unshift(current);
-    }
-    rows = top;
   }
   for (const item of rows) {
     const row = document.createElement("div");
@@ -145,12 +138,6 @@ function renderCases() {
     });
     row.append(button, remove);
     caseList.append(row);
-  }
-  if (!query && state.cases.length > rows.length) {
-    const more = document.createElement("p");
-    more.className = "hint";
-    more.textContent = `${state.cases.length - rows.length} more — search to find them`;
-    caseList.append(more);
   }
   if (query && !rows.length) {
     const empty = document.createElement("p");
