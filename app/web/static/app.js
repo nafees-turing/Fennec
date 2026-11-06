@@ -134,9 +134,10 @@ function renderCases() {
     button.addEventListener("click", () => go(`/cases/${item.id}`));
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.className = "danger tiny";
-    remove.textContent = "Delete";
+    remove.className = "icon-del";
     remove.title = `Delete case ${item.name}`;
+    remove.setAttribute("aria-label", `Delete case ${item.name}`);
+    remove.append(icon("trash"));
     remove.addEventListener("click", (event) => {
       event.stopPropagation();
       deleteCase(item.id, item.name);

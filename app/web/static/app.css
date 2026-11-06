@@ -324,8 +324,22 @@ button.secondary { background: transparent; color: var(--text); border: 1px soli
 button.danger { background: #7f1d1d; color: #fecaca; }
 button.danger:hover { background: #991b1b; }
 button.tiny { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
-.case-row { display: flex; gap: 0.3rem; align-items: stretch; }
-.case-row .pick { flex: 1; }
+.case-row { display: flex; gap: 0.25rem; align-items: center; }
+.case-row .pick { flex: 1; min-width: 0; }
+.icon-del {
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: #f87171;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.icon-del:hover { background: #7f1d1d; color: #fecaca; border-color: #991b1b; }
+.icon-del .icon { width: 0.95rem; height: 0.95rem; }
 .action-legend { margin: 0 0 0.35rem; font-size: 0.8rem; }
 .top-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.45rem; }
 .profile-card .more { display: inline-block; margin-top: 0.7rem; color: var(--hue-basic); font-weight: 650; text-decoration: none; }
