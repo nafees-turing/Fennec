@@ -602,16 +602,25 @@ function renderProfileDetail(profile) {
   form.className = "profile-edit";
   form.innerHTML = `
     <label>Title <input name="profile_title"></label>
+    <label>Primary email <input name="primary_email" type="email" autocomplete="off"></label>
+    <label>Primary phone <input name="primary_phone" type="tel" autocomplete="off"></label>
     <label>Notes <textarea name="profile_notes" rows="3"></textarea></label>
     <button type="submit">Save profile</button>`;
   form.profile_title.value = profile.title || "";
   form.profile_notes.value = profile.notes || "";
+  form.primary_email.value = profile.primary_email || "";
+  form.primary_phone.value = profile.primary_phone || "";
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
       await api(`/api/cases/${state.caseId}/profiles/${profile.id}`, {
         method: "PUT",
-        body: JSON.stringify({ title: form.profile_title.value, notes: form.profile_notes.value }),
+        body: JSON.stringify({
+          title: form.profile_title.value,
+          notes: form.profile_notes.value,
+          primary_email: form.primary_email.value,
+          primary_phone: form.primary_phone.value,
+        }),
       });
       setNotice("Profile notes saved.");
       await showProfilePage(state.caseId, profile.id);
@@ -735,6 +744,15 @@ function paintLookupCards(host, lookups, emptyText) {
     meta.textContent = `${(lookup.runs || []).length} tools · ${lookup.created_at || ""}`;
     head.append(title, meta);
     card.append(head);
+    for (const candidate of (lookup.candidates || []).slice(0, 3)) {
+      const line = document.createElement("p");
+      line.className = "hint candidate";
+      const reason = ((candidate.reasons || [])[0] || candidate.reason || "").trim();
+      line.textContent = reason
+        ? `Might be: ${candidate.title} — ${reason}`
+        : `Might be: ${candidate.title}`;
+      card.append(line);
+    }
     if (lookup.pending) {
       const actions = document.createElement("div");
       actions.className = "save-actions";
