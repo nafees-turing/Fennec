@@ -272,14 +272,31 @@ table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.5rem 0.4rem; vertical-align: top; }
 th { color: var(--muted); font-weight: 650; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
-.profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.9rem; margin-bottom: 1.4rem; }
+.profiles {
+  display: flex;
+  gap: 0.9rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1.4rem;
+  -webkit-overflow-scrolling: touch;
+}
 .profile-card {
   border: 1px solid color-mix(in srgb, var(--hue-basic) 45%, var(--line));
   border-radius: 10px;
   background: color-mix(in srgb, var(--hue-basic) 8%, var(--panel));
   padding: 0.85rem 1rem;
+  min-width: min(320px, 85vw);
+  max-width: 360px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
 }
-.avatar { border-radius: 8px; object-fit: cover; border: 1px solid var(--line); float: right; margin: 0 0 0.5rem 0.7rem; }
+.profile-card.profile-summary { min-width: min(300px, 82vw); }
+#profile-full .profile-card { max-width: 42rem; min-width: 0; width: 100%; }
+.profile-head { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.7rem; }
+.profile-head h3 { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.avatar { border-radius: 8px; object-fit: cover; border: 1px solid var(--line); flex-shrink: 0; }
 .attach { display: flex; gap: 0.4rem; margin: 0.4rem 0 0.7rem; }
 .attach select { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem; }
 .profile-edit { display: flex; flex-direction: column; gap: 0.45rem; margin: 0.8rem 0; max-width: 28rem; }
@@ -294,9 +311,9 @@ th { color: var(--muted); font-weight: 650; font-size: 0.7rem; letter-spacing: 0
   gap: 0.4rem;
   color: var(--hue-basic);
 }
-.profile-card dl { margin: 0; display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.28rem 0.7rem; }
-.profile-card dt { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
-.profile-card dd { margin: 0; overflow-wrap: anywhere; }
+.profile-card dl { margin: 0; display: grid; grid-template-columns: 6.2rem minmax(0, 1fr); gap: 0.35rem 0.7rem; align-items: start; }
+.profile-card dt { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 0.15rem; }
+.profile-card dd { margin: 0; min-width: 0; overflow-x: auto; white-space: nowrap; }
 a.ext, .profile-card a, td a { color: var(--accent-hover); word-break: break-all; }
 .back { color: var(--accent-hover); text-decoration: none; font-weight: 600; }
 .settings-tab {
@@ -352,7 +369,16 @@ button.tiny { padding: 0.2rem 0.45rem; font-size: 0.75rem; }
   padding: 1rem 1.1rem 1.15rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
-.save-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; margin: 0.65rem 0 0.4rem; }
+.save-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0.65rem 0 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+.save-actions button, .save-actions select { flex-shrink: 0; }
 .save-actions.compact { margin: 0.55rem 0 0; }
 .save-actions.compact button { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
 .save-actions select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 0.45rem 0.55rem; }

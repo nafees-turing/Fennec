@@ -479,10 +479,8 @@ function renderProfiles(profiles) {
   for (const profile of profiles) {
     const card = document.createElement("article");
     card.className = "profile-card profile-summary";
-    const title = document.createElement("h3");
-    title.append(icon("basic", "basic"));
-    title.append(document.createTextNode(` ${profile.title}`));
-    card.append(title);
+    const head = document.createElement("div");
+    head.className = "profile-head";
     if (profile.avatar_url) {
       const img = document.createElement("img");
       img.className = "avatar";
@@ -490,8 +488,13 @@ function renderProfiles(profiles) {
       img.alt = "";
       img.width = 48;
       img.height = 48;
-      card.prepend(img);
+      head.append(img);
     }
+    const title = document.createElement("h3");
+    title.append(icon("basic", "basic"));
+    title.append(document.createTextNode(` ${profile.title}`));
+    head.append(title);
+    card.append(head);
     const dl = document.createElement("dl");
     const preview = [
       ["Emails", profile.emails, "email"],
@@ -571,19 +574,22 @@ function renderProfileDetail(profile) {
   host.replaceChildren();
   const card = document.createElement("article");
   card.className = "profile-card";
-  const title = document.createElement("h3");
-  title.append(icon("basic", "basic"));
-  title.append(document.createTextNode(` ${profile.title}`));
-  card.append(title);
+  const head = document.createElement("div");
+  head.className = "profile-head";
   if (profile.avatar_url) {
     const img = document.createElement("img");
     img.className = "avatar";
     img.src = profile.avatar_url;
     img.alt = "";
-    img.width = 96;
-    img.height = 96;
-    card.prepend(img);
+    img.width = 72;
+    img.height = 72;
+    head.append(img);
   }
+  const title = document.createElement("h3");
+  title.append(icon("basic", "basic"));
+  title.append(document.createTextNode(` ${profile.title}`));
+  head.append(title);
+  card.append(head);
   const exports = document.createElement("p");
   exports.className = "export";
   exports.innerHTML = `<a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.html">HTML</a>
