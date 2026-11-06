@@ -273,6 +273,9 @@ th { color: var(--muted); font-weight: 650; font-size: 0.7rem; letter-spacing: 0
 .avatar { border-radius: 8px; object-fit: cover; border: 1px solid var(--line); float: right; margin: 0 0 0.5rem 0.7rem; }
 .attach { display: flex; gap: 0.4rem; margin: 0.4rem 0 0.7rem; }
 .attach select { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem; }
+.profile-edit { display: flex; flex-direction: column; gap: 0.45rem; margin: 0.8rem 0; max-width: 28rem; }
+.profile-edit label { color: var(--muted); font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.profile-edit textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 0.45rem; }
 .profile-card h3 {
   margin: 0 0 0.65rem;
   font-family: var(--display);

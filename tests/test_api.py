@@ -534,6 +534,13 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     assert api.post("/api/cases/1/runs", json={"module": "lichess", "value": "ada"}).status_code == 201
     assert api.post("/api/cases/1/runs", json={"module": "stackoverflow", "value": "Ada"}).status_code == 201
     assert api.post("/api/cases/1/runs", json={"module": "devto", "value": "ada"}).status_code == 201
+    monkeypatch.setattr("app.modules.twitter.fetch_profile", lambda _u: {"url": "https://x.com/ada", "status": 200, "exists": True, "error": None})
+    monkeypatch.setattr("app.modules.linkedin.fetch_profile", lambda _u: {"url": "https://www.linkedin.com/in/ada/", "status": 403, "exists": False, "error": None})
+    tw = api.post("/api/cases/1/runs", json={"module": "twitter", "value": "ada"})
+    assert ("account", "https://x.com/ada") in {(i["kind"], i["value"]) for i in tw.json()["data"]["findings"]}
+    li = api.post("/api/cases/1/runs", json={"module": "linkedin", "value": "ada"})
+    assert li.status_code == 201
+    assert all(i["kind"] != "account" for i in li.json()["data"]["findings"])
 
 
 def test_detect_and_smart_phone_lookup(tmp_path):
@@ -559,6 +566,8 @@ def test_detect_and_smart_phone_lookup(tmp_path):
         "lichess",
         "stackoverflow",
         "devto",
+        "twitter",
+        "linkedin",
     ]
     dotted = api.get("/api/detect", params={"q": "202.83.232.198"})
     assert dotted.json()["data"]["detected"] == "ip"
@@ -610,6 +619,14 @@ def test_attach_profile_and_export(tmp_path):
     ada = next(item for item in merged if "Ada" in item["title"] or "zzzzunique99" in item.get("usernames", []))
     assert "Ada Lovelace" in ada["names"]
     assert "zzzzunique99" in ada["usernames"]
+    saved = api.put(
+        f"/api/cases/1/profiles/{ada['id']}",
+        json={"title": "Ada L.", "notes": "Operator note"},
+    )
+    assert saved.status_code == 200
+    labeled = api.get("/api/cases/1").json()["data"]["profiles"]
+    ada = next(item for item in labeled if item.get("notes") == "Operator note" or item["title"] == "Ada L.")
+    assert ada["title"] == "Ada L."
     html = api.get(f"/api/cases/1/profiles/{ada['id']}/export.html")
     assert html.status_code == 200
     assert "Ada" in html.text

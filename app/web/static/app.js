@@ -284,6 +284,8 @@ const TOOL_ICONS = {
   lichess: "social",
   stackoverflow: "social",
   devto: "social",
+  twitter: "social",
+  linkedin: "social",
   wikipedia: "basic",
   pgp: "basic",
   address: "addresses",
@@ -512,6 +514,45 @@ function renderProfileDetail(profile) {
   exports.innerHTML = `<a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.html">HTML</a>
     <a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.pdf">PDF</a>`;
   card.append(exports);
+  if (profile.map_url) {
+    const map = document.createElement("p");
+    const link = document.createElement("a");
+    link.href = profile.map_url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "ext";
+    link.textContent = "Open approximate location on OpenStreetMap";
+    map.append(link);
+    card.append(map);
+  }
+  const form = document.createElement("form");
+  form.className = "profile-edit";
+  form.innerHTML = `
+    <label>Title <input name="profile_title"></label>
+    <label>Notes <textarea name="profile_notes" rows="3"></textarea></label>
+    <button type="submit">Save profile</button>`;
+  form.profile_title.value = profile.title || "";
+  form.profile_notes.value = profile.notes || "";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await api(`/api/cases/${state.caseId}/profiles/${profile.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ title: form.profile_title.value, notes: form.profile_notes.value }),
+      });
+      setNotice("Profile notes saved.");
+      await showProfilePage(state.caseId, profile.id);
+    } catch (error) {
+      setNotice(error.message);
+    }
+  });
+  card.append(form);
+  if (profile.notes) {
+    const notes = document.createElement("p");
+    notes.className = "notes";
+    notes.textContent = profile.notes;
+    card.append(notes);
+  }
   const dl = document.createElement("dl");
   const groups = [
     ["Names", profile.names, "name"],
@@ -653,6 +694,17 @@ function paintLookupCards(host, lookups, emptyText) {
         }
       });
       card.append(attach);
+    }
+    if ((lookup.candidates || []).length) {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = "Not auto-merged. Possible profiles: " + lookup.candidates.map((item) => `${item.title} (${item.reasons[0] || "similar"})`).join("; ");
+      card.append(hint);
+    } else if (lookup.attached_id) {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = "This search is already on a profile.";
+      card.append(hint);
     }
     for (const run of lookup.runs) {
       const block = document.createElement("section");

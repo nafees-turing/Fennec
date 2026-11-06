@@ -143,6 +143,8 @@ def classify(raw: str) -> dict:
                 _match("lichess", handle, "Lichess", "username"),
                 _match("stackoverflow", handle, "Stack Overflow", "username"),
                 _match("devto", handle, "DEV", "username"),
+                _match("twitter", handle, "X / Twitter", "username"),
+                _match("linkedin", handle, "LinkedIn", "username"),
             ],
         }
 

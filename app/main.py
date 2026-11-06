@@ -13,8 +13,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app import correlate, db, detect as detect_mod, keep
+from app.people import edits as profile_edits
 from app.people import export as profile_export
 from app.people import profiles as profiles_mod
+from app.people import suggest as profile_suggest
 from app.modules.base import ModuleResult
 from app.modules.registry import DEFAULT_MODULES, execute, get_module, list_modules
 from app.netguard import NetworkGuard
@@ -131,6 +133,15 @@ def create_app(
             case["lookups"],
             unions=db.list_unions(app.state.db_path, case_id),
         )
+        case["profiles"] = profile_edits.apply_edits(
+            case["profiles"],
+            db.list_edits(app.state.db_path, case_id),
+        )
+        for lookup in case["lookups"]:
+            query = str(lookup.get("query") or "")
+            attached = profile_suggest.attached_profile(query, case["profiles"])
+            lookup["attached_id"] = attached["id"] if attached else None
+            lookup["candidates"] = profile_suggest.candidates(query, case["profiles"])
         return case
 
     @app.get("/api/cases/{case_id}")
@@ -161,6 +172,22 @@ def create_app(
             db.add_union(app.state.db_path, case_id, left, targets[0])
         updated = load_case(case_id)
         return ok({"profiles": updated["profiles"] if updated else []})
+
+    @app.put("/api/cases/{case_id}/profiles/{profile_id}")
+    async def edit_profile(case_id: int, profile_id: int, request: Request) -> JSONResponse:
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        profile = next((item for item in case["profiles"] if item["id"] == profile_id), None)
+        if profile is None:
+            return fail("profile_not_found", "No profile with that id.", 404)
+        keys = profiles_mod.anchor_keys(profile)
+        if not keys:
+            return fail("cannot_edit", "This profile has no identity key to store notes on.", 400)
+        body = await request.json()
+        saved = db.upsert_edit(app.state.db_path, case_id, keys[0], body)
+        updated = load_case(case_id)
+        return ok({"edit": saved, "profiles": updated["profiles"] if updated else []})
 
     @app.get("/api/cases/{case_id}/profiles/{profile_id}/export.html", response_class=HTMLResponse)
     def export_profile_html(case_id: int, profile_id: int):

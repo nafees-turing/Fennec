@@ -274,12 +274,27 @@ def build(findings: list[dict], lookups: list[dict] | None = None, unions: list[
                 "other": slots["other"][:12],
                 "finding_count": len(rows),
                 "finding_ids": [row["id"] for row in rows if row.get("id") is not None],
+                "map_url": _map_url(slots["places"]),
+                "notes": "",
             }
         )
     profiles.sort(key=lambda item: (-item["finding_count"], item["title"].lower()))
     for index, profile in enumerate(profiles, start=1):
         profile["id"] = index
     return profiles
+
+
+def _map_url(places: list[str]) -> str | None:
+    for item in places:
+        parts = str(item).split(",")
+        if len(parts) < 2:
+            continue
+        try:
+            lat, lon = float(parts[0]), float(parts[1])
+        except ValueError:
+            continue
+        return f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=12/{lat}/{lon}"
+    return None
 
 
 def similar_handle(left: str, right: str) -> bool:

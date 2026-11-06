@@ -84,6 +84,8 @@ PERSON_MODULES = {
     "lichess",
     "stackoverflow",
     "devto",
+    "twitter",
+    "linkedin",
     "company",
     "sanctions",
     "address",

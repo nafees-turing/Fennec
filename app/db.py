@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS identity_unions (
     right_key TEXT NOT NULL,
     UNIQUE(case_id, left_key, right_key)
 );
+
+CREATE TABLE IF NOT EXISTS profile_edits (
+    case_id INTEGER NOT NULL,
+    anchor TEXT NOT NULL,
+    title TEXT,
+    notes TEXT,
+    primary_email TEXT,
+    primary_phone TEXT,
+    PRIMARY KEY (case_id, anchor)
+);
 """
 
 
@@ -205,5 +215,43 @@ def add_union(path: Path, case_id: int, left_key: str, right_key: str) -> None:
             """,
             (case_id, left_key, right_key),
         )
+
+
+def list_edits(path: Path, case_id: int) -> list[dict]:
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT anchor, title, notes, primary_email, primary_phone FROM profile_edits WHERE case_id = ?",
+            (case_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def upsert_edit(path: Path, case_id: int, anchor: str, fields: dict) -> dict:
+    with connect(path) as conn:
+        existing = conn.execute(
+            "SELECT * FROM profile_edits WHERE case_id = ? AND anchor = ?",
+            (case_id, anchor),
+        ).fetchone()
+        title = fields.get("title", existing["title"] if existing else None)
+        notes = fields.get("notes", existing["notes"] if existing else None)
+        email = fields.get("primary_email", existing["primary_email"] if existing else None)
+        phone = fields.get("primary_phone", existing["primary_phone"] if existing else None)
+        conn.execute(
+            """
+            INSERT INTO profile_edits (case_id, anchor, title, notes, primary_email, primary_phone)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(case_id, anchor) DO UPDATE SET
+                title = excluded.title,
+                notes = excluded.notes,
+                primary_email = excluded.primary_email,
+                primary_phone = excluded.primary_phone
+            """,
+            (case_id, anchor, title, notes, email, phone),
+        )
+        row = conn.execute(
+            "SELECT * FROM profile_edits WHERE case_id = ? AND anchor = ?",
+            (case_id, anchor),
+        ).fetchone()
+    return dict(row)
 
 
