@@ -229,9 +229,23 @@ async function openCase(id, keepUrl) {
     `${caseFile.findings.length} findings · ${caseFile.runs.length} lookups · ${ (caseFile.links || []).length } links`;
   state.findings = caseFile.findings;
   state.profiles = caseFile.profiles || [];
+  state.pending = caseFile.pending || null;
   renderProfiles(caseFile.profiles || []);
-  renderLookups(caseFile.lookups || []);
+  renderLookups(caseFile.lookups || [], caseFile.pending);
   renderLinks(caseFile.links || []);
+  const tabs = {
+    profiles: (caseFile.profiles || []).length > 0,
+    links: (caseFile.links || []).length > 0,
+    history: (caseFile.lookups || []).length > 0,
+    result: true,
+  };
+  for (const button of document.querySelectorAll("#case-tabs [data-tab]")) {
+    const name = button.dataset.tab;
+    button.hidden = tabs[name] === false;
+  }
+  if (document.querySelector(`#case-tabs [data-tab="${state.tab}"]`)?.hidden) {
+    state.tab = "result";
+  }
   showTab(state.tab);
   paintCaseList();
 }
@@ -660,63 +674,64 @@ function paintLookupCards(host, lookups, emptyText) {
     meta.textContent = `${lookup.runs.length} tools · ${lookup.created_at || ""}`;
     head.append(title, meta);
     card.append(head);
-    if ((state.profiles || []).length) {
-      const attach = document.createElement("form");
-      attach.className = "attach";
-      const select = document.createElement("select");
-      const blank = document.createElement("option");
-      blank.value = "";
-      blank.textContent = "Add this search to a profile…";
-      select.append(blank);
-      for (const profile of state.profiles) {
-        const option = document.createElement("option");
-        option.value = String(profile.id);
-        option.textContent = profile.title;
-        select.append(option);
-      }
-      const button = document.createElement("button");
-      button.type = "submit";
-      button.textContent = "Attach";
-      attach.append(select, button);
-      attach.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!select.value || !state.caseId) return;
-        try {
-          await api(`/api/cases/${state.caseId}/profiles/${select.value}/attach`, {
-            method: "POST",
-            body: JSON.stringify({ lookup_id: lookup.id }),
-          });
-          setNotice("Search attached to that profile.");
-          state.tab = "profiles";
-          await openCase(state.caseId, true);
-        } catch (error) {
-          setNotice(error.message);
+    if (lookup.pending) {
+      const actions = document.createElement("div");
+      actions.className = "save-actions";
+      const saveSearch = document.createElement("button");
+      saveSearch.type = "button";
+      saveSearch.textContent = "Save search";
+      saveSearch.addEventListener("click", () => commitPending("search"));
+      const saveProfile = document.createElement("button");
+      saveProfile.type = "button";
+      saveProfile.textContent = "Save as profile";
+      saveProfile.addEventListener("click", () => commitPending("profile"));
+      actions.append(saveSearch, saveProfile);
+      if ((state.profiles || []).length) {
+        const select = document.createElement("select");
+        const blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "Existing profile…";
+        select.append(blank);
+        for (const profile of state.profiles) {
+          const option = document.createElement("option");
+          option.value = String(profile.id);
+          option.textContent = profile.title;
+          select.append(option);
         }
-      });
-      card.append(attach);
-    }
-    if ((lookup.candidates || []).length) {
+        const add = document.createElement("button");
+        add.type = "button";
+        add.textContent = "Add to profile";
+        add.addEventListener("click", () => {
+          if (select.value) commitPending("attach", { profile_id: Number(select.value) });
+        });
+        actions.append(select, add);
+      }
+      const discard = document.createElement("button");
+      discard.type = "button";
+      discard.className = "secondary";
+      discard.textContent = "Discard";
+      discard.addEventListener("click", discardPending);
+      actions.append(discard);
+      card.append(actions);
       const hint = document.createElement("p");
       hint.className = "hint";
-      hint.textContent = "Not auto-merged. Possible profiles: " + lookup.candidates.map((item) => `${item.title} (${item.reasons[0] || "similar"})`).join("; ");
-      card.append(hint);
-    } else if (lookup.attached_id) {
-      const hint = document.createElement("p");
-      hint.className = "hint";
-      hint.textContent = "This search is already on a profile.";
+      hint.textContent = "Preview only. Nothing is stored until you save.";
       card.append(hint);
     }
-    for (const run of lookup.runs) {
+    const hits = (lookup.runs || []).filter((run) => (run.findings || []).length);
+    if (!hits.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty";
+      empty.textContent = "No useful hits to show.";
+      card.append(empty);
+    }
+    for (const run of hits) {
       const block = document.createElement("section");
       block.className = "run-block";
       const label = document.createElement("h4");
       const module = state.modules.find((item) => item.id === run.module_id);
       label.append(icon(TOOL_ICONS[run.module_id] || "dot", module ? module.category : "search"));
       label.append(document.createTextNode(` ${module ? module.title : run.module_id}`));
-      const status = document.createElement("span");
-      status.className = run.status || "ok";
-      status.textContent = run.error ? `${run.status}: ${run.error}` : run.status;
-      label.append(status);
       block.append(label);
       block.append(findingsTable(run.findings || []));
       card.append(block);
@@ -725,16 +740,39 @@ function paintLookupCards(host, lookups, emptyText) {
   });
 }
 
-function renderLookups(lookups) {
+function renderLookups(lookups, pending) {
   const total = lookups.reduce((sum, item) => sum + item.runs.reduce((n, run) => n + (run.findings || []).length, 0), 0);
   const count = document.querySelector("#finding-count");
-  if (count) count.textContent = `${lookups.length} searches · ${total} findings`;
+  if (count) count.textContent = `${lookups.length} saved · ${total} findings`;
+  const current = pending ? [pending] : [];
   paintLookupCards(
     document.querySelector("#current-lookup"),
-    lookups.slice(0, 1),
-    "Run a lookup above. This tab shows only that result.",
+    current,
+    "Run a lookup above. Save it if you want it on the case.",
   );
-  paintLookupCards(lookupsHost, lookups, "No searches on this case yet.");
+  paintLookupCards(lookupsHost, lookups, "No saved searches yet.");
+}
+
+async function commitPending(action, extra = {}) {
+  if (!state.caseId) return;
+  try {
+    await api(`/api/cases/${state.caseId}/commit`, {
+      method: "POST",
+      body: JSON.stringify({ action, ...extra }),
+    });
+    setNotice(action === "profile" ? "Saved as a profile." : action === "attach" ? "Added to the profile." : "Search saved to history.");
+    state.tab = action === "search" ? "history" : "profiles";
+    await openCase(state.caseId, true);
+  } catch (error) {
+    setNotice(error.message);
+  }
+}
+
+async function discardPending() {
+  if (!state.caseId) return;
+  await api(`/api/cases/${state.caseId}/pending`, { method: "DELETE" });
+  setNotice("Preview discarded.");
+  await openCase(state.caseId, true);
 }
 
 function renderLinks(rows) {

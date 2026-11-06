@@ -585,8 +585,15 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     run = api.post("/api/cases/1/lookup", json={"value": "+41446681800"})
     assert run.status_code == 201
     assert run.json()["data"]["detected"] == "phone"
-    assert run.json()["data"]["runs"][0]["status"] == "ok"
+    assert run.json()["data"]["pending"] is True
+    preview = api.get("/api/cases/1").json()["data"]
+    assert preview["pending"]["query"] == "+41446681800"
+    assert preview["lookups"] == []
+    assert preview["profiles"] == []
+    saved = api.post("/api/cases/1/commit", json={"action": "profile"})
+    assert saved.status_code == 200
     case = api.get("/api/cases/1").json()["data"]
+    assert case["pending"] is None
     assert len(case["lookups"]) == 1
     assert case["lookups"][0]["query"] == "+41446681800"
     assert case["lookups"][0]["runs"][0]["module_id"] == "phone"

@@ -17,7 +17,13 @@ CREATE TABLE IF NOT EXISTS runs (
     input_value TEXT NOT NULL,
     error TEXT,
     lookup_id TEXT,
+    in_profile INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS pending_lookups (
+    case_id INTEGER PRIMARY KEY,
+    payload TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS findings (
@@ -69,6 +75,8 @@ def init_db(path: Path) -> None:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)").fetchall()}
         if "lookup_id" not in cols:
             conn.execute("ALTER TABLE runs ADD COLUMN lookup_id TEXT")
+        if "in_profile" not in cols:
+            conn.execute("ALTER TABLE runs ADD COLUMN in_profile INTEGER NOT NULL DEFAULT 1")
 
 
 def get_setting(path: Path, key: str) -> str | None:
@@ -115,14 +123,15 @@ def add_run(
     error: str | None,
     findings: list[dict],
     lookup_id: str | None = None,
+    in_profile: bool = True,
 ) -> dict:
     with connect(path) as conn:
         cur = conn.execute(
             """
-            INSERT INTO runs (case_id, module_id, status, input_value, error, lookup_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO runs (case_id, module_id, status, input_value, error, lookup_id, in_profile)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (case_id, module_id, status, input_value, error, lookup_id),
+            (case_id, module_id, status, input_value, error, lookup_id, 1 if in_profile else 0),
         )
         run_id = cur.lastrowid
         for finding in findings:
@@ -193,6 +202,36 @@ def delete_findings(path: Path, case_id: int, finding_ids: list[int]) -> int:
             [case_id, *run_ids],
         )
         return cur.rowcount
+
+
+def set_pending(path: Path, case_id: int, payload: str) -> None:
+    with connect(path) as conn:
+        conn.execute(
+            """
+            INSERT INTO pending_lookups (case_id, payload) VALUES (?, ?)
+            ON CONFLICT(case_id) DO UPDATE SET payload = excluded.payload
+            """,
+            (case_id, payload),
+        )
+
+
+def get_pending(path: Path, case_id: int) -> str | None:
+    with connect(path) as conn:
+        row = conn.execute("SELECT payload FROM pending_lookups WHERE case_id = ?", (case_id,)).fetchone()
+    return None if row is None else str(row["payload"])
+
+
+def clear_pending(path: Path, case_id: int) -> None:
+    with connect(path) as conn:
+        conn.execute("DELETE FROM pending_lookups WHERE case_id = ?", (case_id,))
+
+
+def mark_runs_in_profile(path: Path, case_id: int, lookup_id: str) -> None:
+    with connect(path) as conn:
+        conn.execute(
+            "UPDATE runs SET in_profile = 1 WHERE case_id = ? AND lookup_id = ?",
+            (case_id, lookup_id),
+        )
 
 
 def list_unions(path: Path, case_id: int) -> list[tuple[str, str]]:

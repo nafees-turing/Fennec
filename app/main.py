@@ -128,9 +128,18 @@ def create_app(
         case["findings"] = db.list_findings(app.state.db_path, case_id)
         case["links"] = correlate.links(case["findings"])
         case["lookups"] = group_lookups(case["runs"], case["findings"])
+        pending_raw = db.get_pending(app.state.db_path, case_id)
+        case["pending"] = json.loads(pending_raw) if pending_raw else None
+        profile_run_ids = {int(run["id"]) for run in case["runs"] if run.get("in_profile")}
+        profile_findings = [row for row in case["findings"] if row.get("run_id") in profile_run_ids]
+        profile_lookups = [
+            lookup
+            for lookup in case["lookups"]
+            if any(run.get("in_profile") for run in lookup.get("runs") or [])
+        ]
         case["profiles"] = profiles_mod.build(
-            case["findings"],
-            case["lookups"],
+            profile_findings,
+            profile_lookups,
             unions=db.list_unions(app.state.db_path, case_id),
         )
         case["profiles"] = profile_edits.apply_edits(
@@ -316,22 +325,74 @@ def create_app(
         lookup_id = uuid.uuid4().hex
         runs = []
         for item in classified["matches"]:
-            run, error = await run_module(app, case_id, item["module"], item["value"], lookup_id=lookup_id)
+            preview, error = await preview_module(app, item["module"], item["value"])
             if error:
-                runs.append(
-                    {
-                        "module_id": item["module"],
-                        "status": "skipped",
-                        "input_value": item["value"],
-                        "error": error["message"],
-                        "match_label": item["label"],
-                        "findings": [],
-                    }
-                )
                 continue
-            run["match_label"] = item["label"]
-            runs.append(run)
-        return ok({"detected": classified["detected"], "matches": classified["matches"], "runs": runs}, 201)
+            preview["match_label"] = item["label"]
+            if preview["status"] == "ok" and preview["findings"]:
+                runs.append(preview)
+        pending = {
+            "id": lookup_id,
+            "query": value,
+            "detected": classified["detected"],
+            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "pending": True,
+            "runs": runs,
+        }
+        db.set_pending(app.state.db_path, case_id, json.dumps(pending))
+        return ok(pending, 201)
+
+    @app.post("/api/cases/{case_id}/commit")
+    async def commit_lookup(case_id: int, request: Request) -> JSONResponse:
+        if db.get_case(app.state.db_path, case_id) is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        raw = db.get_pending(app.state.db_path, case_id)
+        if not raw:
+            return fail("no_pending", "There is no unsaved search to keep.", 400)
+        pending = json.loads(raw)
+        body = await request.json()
+        action = str(body.get("action") or "search")
+        if action not in {"search", "profile", "attach"}:
+            return fail("invalid_action", "Use search, profile, or attach.", 400)
+        lookup_id = str(pending.get("id") or uuid.uuid4().hex)
+        in_profile = action in {"profile", "attach"}
+        for run in pending.get("runs") or []:
+            db.add_run(
+                app.state.db_path,
+                case_id,
+                str(run.get("module_id") or ""),
+                str(run.get("status") or "ok"),
+                str(run.get("input_value") or pending.get("query") or ""),
+                run.get("error"),
+                list(run.get("findings") or []),
+                lookup_id=lookup_id,
+                in_profile=in_profile,
+            )
+        if action == "attach":
+            profile_id = int(body.get("profile_id") or 0)
+            case = load_case(case_id)
+            profile = next((item for item in (case or {}).get("profiles") or [] if item["id"] == profile_id), None)
+            if profile is None:
+                return fail("profile_not_found", "No profile with that id.", 404)
+            query_keys = profiles_mod._from_query(str(pending.get("query") or ""))
+            targets = profiles_mod.anchor_keys(profile)
+            if query_keys and targets:
+                for left in query_keys:
+                    db.add_union(app.state.db_path, case_id, left, targets[0])
+            db.mark_runs_in_profile(app.state.db_path, case_id, lookup_id)
+        if action == "profile":
+            title = str(body.get("title") or "").strip()
+            case = load_case(case_id)
+            query_keys = profiles_mod._from_query(str(pending.get("query") or ""))
+            if title and query_keys:
+                db.upsert_edit(app.state.db_path, case_id, query_keys[0], {"title": title})
+        db.clear_pending(app.state.db_path, case_id)
+        return ok(load_case(case_id))
+
+    @app.delete("/api/cases/{case_id}/pending")
+    def discard_pending(case_id: int) -> JSONResponse:
+        db.clear_pending(app.state.db_path, case_id)
+        return ok({"discarded": True})
 
     return app
 
@@ -356,6 +417,35 @@ def group_lookups(runs: list[dict], findings: list[dict]) -> list[dict]:
         item["findings"] = by_run.get(run["id"], [])
         groups[lid]["runs"].append(item)
     return [groups[key] for key in order]
+
+
+async def preview_module(app: FastAPI, module_id: str, value: str):
+    spec = get_module(module_id)
+    if spec is None or not spec.available:
+        return None, {"code": "module_unavailable", "message": "That module cannot run.", "status": 409}
+    key = f"{module_id}:{value.lower()}"
+    if spec.network:
+        blocked = app.state.network.begin(key)
+        if blocked:
+            return None, {"code": "network_limited", "message": blocked, "status": 429}
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(execute, module_id, value),
+            timeout=app.state.run_timeout,
+        )
+    except TimeoutError:
+        result = ModuleResult(status="failed", error="Timed out before the module finished.")
+    finally:
+        if spec.network:
+            app.state.network.end(key)
+    findings = keep.filter_findings([item.as_dict() for item in result.findings])
+    return {
+        "module_id": module_id,
+        "status": result.status,
+        "input_value": value,
+        "error": result.error,
+        "findings": findings,
+    }, None
 
 
 async def run_module(app: FastAPI, case_id: int, module_id: str, value: str, lookup_id: str | None = None):
