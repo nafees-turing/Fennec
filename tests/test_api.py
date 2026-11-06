@@ -684,6 +684,8 @@ def test_home_shell(tmp_path):
     assert "email" in settings.json()["data"]["default_modules"]
     assert "internetdb" not in settings.json()["data"]["default_modules"]
     assert "geoip" in settings.json()["data"]["default_modules"]
+    assert "company" in settings.json()["data"]["presets"]["company"]
+    assert "email" in settings.json()["data"]["presets"]["personal"]
     saved = api.put("/api/settings", json={"default_modules": ["phone"]})
     assert saved.json()["data"]["default_modules"] == ["phone"]
     again = api.get("/api/settings")

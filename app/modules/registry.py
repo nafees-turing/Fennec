@@ -54,6 +54,18 @@ DEFAULT_MODULES = [
     "geoip",
 ]
 
+COMPANY_MODULES = [
+    "name",
+    "company",
+    "sanctions",
+    "domain",
+    "wikipedia",
+    "person",
+    "geocode",
+    "address",
+    "email",
+]
+
 CATEGORIES = [
     ("basic", "Basic"),
     ("social", "Social"),

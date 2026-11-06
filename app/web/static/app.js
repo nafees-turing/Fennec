@@ -16,6 +16,9 @@ const state = {
   profileId: null,
   tab: "result",
   profiles: [],
+  pending: null,
+  presets: { personal: [], company: [], advanced: [] },
+  preset: localStorage.getItem("fennec.preset") || "personal",
 };
 
 const notice = document.querySelector("#notice");
@@ -653,6 +656,7 @@ function findingsTable(rows) {
 }
 
 function paintLookupCards(host, lookups, emptyText) {
+  if (!host) return;
   host.replaceChildren();
   if (!lookups.length) {
     const empty = document.createElement("p");
@@ -671,7 +675,7 @@ function paintLookupCards(host, lookups, emptyText) {
     title.append(document.createTextNode(` ${lookup.query}`));
     const meta = document.createElement("p");
     meta.className = "count";
-    meta.textContent = `${lookup.runs.length} tools · ${lookup.created_at || ""}`;
+    meta.textContent = `${(lookup.runs || []).length} tools · ${lookup.created_at || ""}`;
     head.append(title, meta);
     card.append(head);
     if (lookup.pending) {
@@ -741,7 +745,8 @@ function paintLookupCards(host, lookups, emptyText) {
 }
 
 function renderLookups(lookups, pending) {
-  const total = lookups.reduce((sum, item) => sum + item.runs.reduce((n, run) => n + (run.findings || []).length, 0), 0);
+  const rows = lookups || [];
+  const total = rows.reduce((sum, item) => sum + ((item.runs || []).reduce((n, run) => n + ((run.findings || []).length), 0)), 0);
   const count = document.querySelector("#finding-count");
   if (count) count.textContent = `${lookups.length} saved · ${total} findings`;
   const current = pending ? [pending] : [];
@@ -808,7 +813,7 @@ document.querySelector("#smart-input").addEventListener("input", () => {
     try {
       const result = await api(`/api/detect?q=${encodeURIComponent(value)}`);
       state.matches = result.matches || [];
-      state.selected = new Set(state.matches.filter((item) => state.defaults.has(item.module)).map((item) => item.module));
+      applyPresetSelection();
       for (const item of state.matches) {
         const module = state.modules.find((row) => row.id === item.module);
         if (module) state.openGroups.add(module.category);
@@ -842,8 +847,8 @@ document.querySelector("#smart-form").addEventListener("submit", async (event) =
       method: "POST",
       body: JSON.stringify({ value, modules }),
     });
-    const names = result.matches.map((item) => item.label).join(", ");
-    setNotice(`Detected ${result.detected}. Ran ${names || "selected tools"}.`);
+    const names = (result.runs || []).map((item) => item.match_label || item.module_id).join(", ");
+    setNotice(`Detected ${result.detected || "value"}. Preview: ${names || "no hits to keep"}.`);
     document.querySelector("#smart-input").value = "";
     state.tab = "result";
     await openCase(state.caseId);
@@ -914,7 +919,34 @@ function renderSettingsForm() {
 async function loadSettings() {
   const data = await api("/api/settings");
   state.personalDefaults = data.personal_defaults || [];
-  state.defaults = new Set(data.default_modules || state.personalDefaults);
+  state.presets = data.presets || {
+    personal: state.personalDefaults,
+    company: [],
+    advanced: (state.modules || []).map((item) => item.id),
+  };
+  applyPreset(state.preset, false);
+}
+
+function applyPresetSelection() {
+  const allowed = state.defaults;
+  state.selected = new Set((state.matches || []).filter((item) => allowed.has(item.module)).map((item) => item.module));
+  renderChips();
+  paintPresets();
+}
+
+function paintPresets() {
+  for (const button of document.querySelectorAll("#presets [data-preset]")) {
+    button.classList.toggle("on", button.dataset.preset === state.preset);
+  }
+}
+
+function applyPreset(name, rerender = true) {
+  state.preset = name;
+  localStorage.setItem("fennec.preset", name);
+  const list = (state.presets && state.presets[name]) || state.personalDefaults;
+  state.defaults = new Set(list);
+  if (rerender) applyPresetSelection();
+  else paintPresets();
 }
 
 document.querySelector("#case-tabs").addEventListener("click", (event) => {
@@ -954,6 +986,19 @@ document.querySelector("#delete-profile").addEventListener("click", async () => 
   } catch (error) {
     setNotice(error.message);
   }
+});
+
+document.querySelector("#presets").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-preset]");
+  if (!button) return;
+  applyPreset(button.dataset.preset);
+  setNotice(
+    button.dataset.preset === "personal"
+      ? "Personal preset: people, email, phone, GitHub."
+      : button.dataset.preset === "company"
+        ? "Company preset: org, domain, sanctions, place."
+        : "Advanced: every matching tool is selected. Turn tags off if you do not need them.",
+  );
 });
 
 document.querySelector("#settings-link").addEventListener("click", (event) => {

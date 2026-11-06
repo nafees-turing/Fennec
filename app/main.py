@@ -18,7 +18,7 @@ from app.people import export as profile_export
 from app.people import profiles as profiles_mod
 from app.people import suggest as profile_suggest
 from app.modules.base import ModuleResult
-from app.modules.registry import DEFAULT_MODULES, execute, get_module, list_modules
+from app.modules.registry import COMPANY_MODULES, DEFAULT_MODULES, execute, get_module, list_modules
 from app.netguard import NetworkGuard
 
 WEB = Path(__file__).resolve().parent / "web"
@@ -93,7 +93,18 @@ def create_app(
 
     @app.get("/api/settings")
     def get_settings() -> JSONResponse:
-        return ok({"default_modules": load_defaults(), "personal_defaults": list(DEFAULT_MODULES)})
+        available = [item.id for item in list_modules() if item.available]
+        return ok(
+            {
+                "default_modules": load_defaults(),
+                "personal_defaults": list(DEFAULT_MODULES),
+                "presets": {
+                    "personal": list(DEFAULT_MODULES),
+                    "company": list(COMPANY_MODULES),
+                    "advanced": available,
+                },
+            }
+        )
 
     @app.put("/api/settings")
     async def put_settings(request: Request) -> JSONResponse:

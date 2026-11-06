@@ -209,6 +209,15 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .smart-form { display: flex; gap: 0.4rem; justify-content: center; }
 .smart-form input { flex: 1; min-width: 0; }
 .chips { justify-content: center; }
+.presets { display: flex; justify-content: center; gap: 0.35rem; margin: 0.45rem 0 0.2rem; }
+.presets button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font-weight: 650;
+  padding: 0.35rem 0.7rem;
+}
+.presets button.on { background: #163056; color: #dbeafe; border-color: #1d4ed8; }
 .rail-search {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
