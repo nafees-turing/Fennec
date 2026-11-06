@@ -495,6 +495,9 @@ function renderProfiles(profiles) {
       dl.append(dt, dd);
     }
     card.append(dl);
+    if ((profile.actions || []).length) {
+      card.append(actionBar(profile));
+    }
     const more = document.createElement("a");
     more.className = "more";
     more.href = `/cases/${state.caseId}/profiles/${profile.id}`;
@@ -505,6 +508,40 @@ function renderProfiles(profiles) {
     });
     card.append(more);
     host.append(card);
+  }
+}
+
+function actionBar(profile, large) {
+  const bar = document.createElement("div");
+  bar.className = large ? "save-actions" : "save-actions compact";
+  for (const action of profile.actions || []) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = action.label;
+    button.title = `Search ${action.value}`;
+    button.addEventListener("click", () => enrichProfile(profile.id, action.id));
+    bar.append(button);
+  }
+  return bar;
+}
+
+async function enrichProfile(profileId, setId) {
+  if (!state.caseId) return;
+  document.body.classList.add("busy");
+  setNotice("Looking up public profiles for this person…");
+  try {
+    const result = await api(`/api/cases/${state.caseId}/profiles/${profileId}/enrich`, {
+      method: "POST",
+      body: JSON.stringify({ set: setId }),
+    });
+    const ran = (result.ran || []).join(", ") || "no new hits";
+    setNotice(`Used ${result.value}. Added: ${ran}.`);
+    if (location.pathname.includes("/profiles/")) await showProfilePage(state.caseId, profileId);
+    else await openCase(state.caseId, true);
+  } catch (error) {
+    setNotice(error.message);
+  } finally {
+    document.body.classList.remove("busy");
   }
 }
 
@@ -531,6 +568,9 @@ function renderProfileDetail(profile) {
   exports.innerHTML = `<a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.html">HTML</a>
     <a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.pdf">PDF</a>`;
   card.append(exports);
+  if ((profile.actions || []).length) {
+    card.append(actionBar(profile, true));
+  }
   if (profile.map_url) {
     const map = document.createElement("p");
     const link = document.createElement("a");

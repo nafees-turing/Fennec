@@ -608,7 +608,7 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert skipped.status_code == 400
 
 
-def test_attach_profile_and_export(tmp_path):
+def test_attach_profile_and_export(tmp_path, monkeypatch):
     api = client(tmp_path)
     api.post("/api/cases", json={"name": "People"})
     api.post("/api/cases/1/runs", json={"module": "name", "value": "Ada Lovelace"})
@@ -634,6 +634,38 @@ def test_attach_profile_and_export(tmp_path):
     labeled = api.get("/api/cases/1").json()["data"]["profiles"]
     ada = next(item for item in labeled if item.get("notes") == "Operator note" or item["title"] == "Ada L.")
     assert ada["title"] == "Ada L."
+    async def fake_preview(_app, module_id, value):
+        if module_id != "social":
+            return {
+                "module_id": module_id,
+                "status": "ok",
+                "input_value": value,
+                "error": None,
+                "findings": [],
+            }, None
+        return {
+            "module_id": "social",
+            "status": "ok",
+            "input_value": value,
+            "error": None,
+            "findings": [
+                {
+                    "kind": "account",
+                    "value": "https://github.com/zzzzunique99",
+                    "source": "social",
+                    "confidence": "medium",
+                    "evidence": "hit",
+                }
+            ],
+        }, None
+
+    monkeypatch.setattr("app.main.preview_module", fake_preview)
+    enriched = api.post(
+        f"/api/cases/1/profiles/{ada['id']}/enrich",
+        json={"set": "social"},
+    )
+    assert enriched.status_code == 200
+    assert "social" in enriched.json()["data"]["ran"]
     html = api.get(f"/api/cases/1/profiles/{ada['id']}/export.html")
     assert html.status_code == 200
     assert "Ada" in html.text

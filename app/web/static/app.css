@@ -332,6 +332,8 @@ button.secondary { background: transparent; color: var(--text); border: 1px soli
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 .save-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; margin: 0.65rem 0 0.4rem; }
+.save-actions.compact { margin: 0.55rem 0 0; }
+.save-actions.compact button { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
 .save-actions select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 0.45rem 0.55rem; }
 .lookup-head { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; margin-bottom: 0.7rem; }
 .lookup-head h3 {

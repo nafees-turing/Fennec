@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from app import correlate, db, detect as detect_mod, keep
 from app.people import edits as profile_edits
+from app.people import enrich as profile_enrich
 from app.people import export as profile_export
 from app.people import profiles as profiles_mod
 from app.people import suggest as profile_suggest
@@ -157,6 +158,8 @@ def create_app(
             case["profiles"],
             db.list_edits(app.state.db_path, case_id),
         )
+        for profile in case["profiles"]:
+            profile["actions"] = profile_enrich.available_actions(profile)
         for lookup in case["lookups"]:
             query = str(lookup.get("query") or "")
             attached = profile_suggest.attached_profile(query, case["profiles"])
@@ -208,6 +211,48 @@ def create_app(
         saved = db.upsert_edit(app.state.db_path, case_id, keys[0], body)
         updated = load_case(case_id)
         return ok({"edit": saved, "profiles": updated["profiles"] if updated else []})
+
+    @app.post("/api/cases/{case_id}/profiles/{profile_id}/enrich")
+    async def enrich_profile(case_id: int, profile_id: int, request: Request) -> JSONResponse:
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        profile = next((item for item in case["profiles"] if item["id"] == profile_id), None)
+        if profile is None:
+            return fail("profile_not_found", "No profile with that id.", 404)
+        body = await request.json()
+        set_id = str(body.get("set") or "")
+        spec = profile_enrich.SETS.get(set_id)
+        if spec is None:
+            return fail("unknown_set", "Use social, email, name, or phone.", 400)
+        value = str(body.get("value") or profile_enrich.seed_value(profile, spec["seed"]) or "").strip()
+        if not value:
+            return fail("no_seed", f"This profile has no {spec['seed']} to search with.", 400)
+        lookup_id = uuid.uuid4().hex
+        ran = []
+        for module_id in spec["modules"]:
+            preview, error = await preview_module(app, module_id, value)
+            if error or not preview or not preview.get("findings"):
+                continue
+            db.add_run(
+                app.state.db_path,
+                case_id,
+                module_id,
+                str(preview.get("status") or "ok"),
+                value,
+                preview.get("error"),
+                list(preview.get("findings") or []),
+                lookup_id=lookup_id,
+                in_profile=True,
+            )
+            ran.append(module_id)
+        query_keys = profiles_mod._from_query(value)
+        targets = profiles_mod.anchor_keys(profile)
+        if query_keys and targets:
+            for left in query_keys:
+                db.add_union(app.state.db_path, case_id, left, targets[0])
+        updated = load_case(case_id)
+        return ok({"ran": ran, "value": value, "profiles": updated["profiles"] if updated else []})
 
     @app.get("/api/cases/{case_id}/profiles/{profile_id}/export.html", response_class=HTMLResponse)
     def export_profile_html(case_id: int, profile_id: int):
