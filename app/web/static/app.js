@@ -665,6 +665,7 @@ async function showProfilePage(caseId, profileId) {
   document.querySelector("#welcome").hidden = true;
   document.querySelector("#results").hidden = true;
   document.querySelector("#export-links").hidden = true;
+  document.querySelector("#delete-case").hidden = true;
   document.querySelector("#settings-page").hidden = true;
   document.querySelector("#profile-page").hidden = false;
   document.querySelector("#back-to-case").href = `/cases/${caseId}`;
