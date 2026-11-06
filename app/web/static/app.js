@@ -15,6 +15,7 @@ const state = {
   toolsOpen: localStorage.getItem("fennec.toolsOpen") !== "0",
   profileId: null,
   tab: "result",
+  profiles: [],
 };
 
 const notice = document.querySelector("#notice");
@@ -227,6 +228,7 @@ async function openCase(id, keepUrl) {
   document.querySelector("#case-stats").textContent =
     `${caseFile.findings.length} findings · ${caseFile.runs.length} lookups · ${ (caseFile.links || []).length } links`;
   state.findings = caseFile.findings;
+  state.profiles = caseFile.profiles || [];
   renderProfiles(caseFile.profiles || []);
   renderLookups(caseFile.lookups || []);
   renderLinks(caseFile.links || []);
@@ -449,6 +451,15 @@ function renderProfiles(profiles) {
     title.append(icon("basic", "basic"));
     title.append(document.createTextNode(` ${profile.title}`));
     card.append(title);
+    if (profile.avatar_url) {
+      const img = document.createElement("img");
+      img.className = "avatar";
+      img.src = profile.avatar_url;
+      img.alt = "";
+      img.width = 48;
+      img.height = 48;
+      card.prepend(img);
+    }
     const dl = document.createElement("dl");
     const preview = [
       ["Emails", profile.emails, "email"],
@@ -487,6 +498,20 @@ function renderProfileDetail(profile) {
   title.append(icon("basic", "basic"));
   title.append(document.createTextNode(` ${profile.title}`));
   card.append(title);
+  if (profile.avatar_url) {
+    const img = document.createElement("img");
+    img.className = "avatar";
+    img.src = profile.avatar_url;
+    img.alt = "";
+    img.width = 96;
+    img.height = 96;
+    card.prepend(img);
+  }
+  const exports = document.createElement("p");
+  exports.className = "export";
+  exports.innerHTML = `<a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.html">HTML</a>
+    <a class="ext" href="/api/cases/${state.caseId}/profiles/${profile.id}/export.pdf">PDF</a>`;
+  card.append(exports);
   const dl = document.createElement("dl");
   const groups = [
     ["Names", profile.names, "name"],
@@ -594,6 +619,41 @@ function paintLookupCards(host, lookups, emptyText) {
     meta.textContent = `${lookup.runs.length} tools · ${lookup.created_at || ""}`;
     head.append(title, meta);
     card.append(head);
+    if ((state.profiles || []).length) {
+      const attach = document.createElement("form");
+      attach.className = "attach";
+      const select = document.createElement("select");
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "Add this search to a profile…";
+      select.append(blank);
+      for (const profile of state.profiles) {
+        const option = document.createElement("option");
+        option.value = String(profile.id);
+        option.textContent = profile.title;
+        select.append(option);
+      }
+      const button = document.createElement("button");
+      button.type = "submit";
+      button.textContent = "Attach";
+      attach.append(select, button);
+      attach.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!select.value || !state.caseId) return;
+        try {
+          await api(`/api/cases/${state.caseId}/profiles/${select.value}/attach`, {
+            method: "POST",
+            body: JSON.stringify({ lookup_id: lookup.id }),
+          });
+          setNotice("Search attached to that profile.");
+          state.tab = "profiles";
+          await openCase(state.caseId, true);
+        } catch (error) {
+          setNotice(error.message);
+        }
+      });
+      card.append(attach);
+    }
     for (const run of lookup.runs) {
       const block = document.createElement("section");
       block.className = "run-block";

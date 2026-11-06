@@ -12,7 +12,9 @@ from app import pdf as pdf_export
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app import correlate, db, detect as detect_mod, keep, profiles as profiles_mod
+from app import correlate, db, detect as detect_mod, keep
+from app.people import export as profile_export
+from app.people import profiles as profiles_mod
 from app.modules.base import ModuleResult
 from app.modules.registry import DEFAULT_MODULES, execute, get_module, list_modules
 from app.netguard import NetworkGuard
@@ -124,7 +126,11 @@ def create_app(
         case["findings"] = db.list_findings(app.state.db_path, case_id)
         case["links"] = correlate.links(case["findings"])
         case["lookups"] = group_lookups(case["runs"], case["findings"])
-        case["profiles"] = profiles_mod.build(case["findings"], case["lookups"])
+        case["profiles"] = profiles_mod.build(
+            case["findings"],
+            case["lookups"],
+            unions=db.list_unions(app.state.db_path, case_id),
+        )
         return case
 
     @app.get("/api/cases/{case_id}")
@@ -133,6 +139,53 @@ def create_app(
         if case is None:
             return fail("case_not_found", "No case with that id.", 404)
         return ok(case)
+
+    @app.post("/api/cases/{case_id}/profiles/{profile_id}/attach")
+    async def attach_lookup(case_id: int, profile_id: int, request: Request) -> JSONResponse:
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        profile = next((item for item in case["profiles"] if item["id"] == profile_id), None)
+        if profile is None:
+            return fail("profile_not_found", "No profile with that id.", 404)
+        body = await request.json()
+        lookup_id = str(body.get("lookup_id") or "")
+        lookup = next((item for item in case["lookups"] if item["id"] == lookup_id), None)
+        if lookup is None:
+            return fail("lookup_not_found", "No search with that id.", 404)
+        query_keys = profiles_mod._from_query(str(lookup.get("query") or ""))
+        targets = profiles_mod.anchor_keys(profile)
+        if not query_keys or not targets:
+            return fail("cannot_attach", "Need a person identifier on both the search and the profile.", 400)
+        for left in query_keys:
+            db.add_union(app.state.db_path, case_id, left, targets[0])
+        updated = load_case(case_id)
+        return ok({"profiles": updated["profiles"] if updated else []})
+
+    @app.get("/api/cases/{case_id}/profiles/{profile_id}/export.html", response_class=HTMLResponse)
+    def export_profile_html(case_id: int, profile_id: int):
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        profile = next((item for item in case["profiles"] if item["id"] == profile_id), None)
+        if profile is None:
+            return fail("profile_not_found", "No profile with that id.", 404)
+        return HTMLResponse(profile_export.render_html(profile, case.get("name") or ""))
+
+    @app.get("/api/cases/{case_id}/profiles/{profile_id}/export.pdf")
+    def export_profile_pdf(case_id: int, profile_id: int):
+        case = load_case(case_id)
+        if case is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        profile = next((item for item in case["profiles"] if item["id"] == profile_id), None)
+        if profile is None:
+            return fail("profile_not_found", "No profile with that id.", 404)
+        payload = profile_export.render_pdf(profile, case.get("name") or "")
+        return Response(
+            content=payload,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="fennec-profile-{profile_id}.pdf"'},
+        )
 
     @app.delete("/api/cases/{case_id}/profiles/{profile_id}")
     def delete_profile(case_id: int, profile_id: int) -> JSONResponse:

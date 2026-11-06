@@ -35,6 +35,13 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS identity_unions (
+    case_id INTEGER NOT NULL,
+    left_key TEXT NOT NULL,
+    right_key TEXT NOT NULL,
+    UNIQUE(case_id, left_key, right_key)
+);
 """
 
 
@@ -176,5 +183,27 @@ def delete_findings(path: Path, case_id: int, finding_ids: list[int]) -> int:
             [case_id, *run_ids],
         )
         return cur.rowcount
+
+
+def list_unions(path: Path, case_id: int) -> list[tuple[str, str]]:
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT left_key, right_key FROM identity_unions WHERE case_id = ?",
+            (case_id,),
+        ).fetchall()
+    return [(str(row["left_key"]), str(row["right_key"])) for row in rows]
+
+
+def add_union(path: Path, case_id: int, left_key: str, right_key: str) -> None:
+    if not left_key or not right_key or left_key == right_key:
+        return
+    with connect(path) as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO identity_unions (case_id, left_key, right_key)
+            VALUES (?, ?, ?)
+            """,
+            (case_id, left_key, right_key),
+        )
 
 

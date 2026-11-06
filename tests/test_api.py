@@ -592,6 +592,32 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert skipped.status_code == 400
 
 
+def test_attach_profile_and_export(tmp_path):
+    api = client(tmp_path)
+    api.post("/api/cases", json={"name": "People"})
+    api.post("/api/cases/1/runs", json={"module": "name", "value": "Ada Lovelace"})
+    api.post("/api/cases/1/runs", json={"module": "username", "value": "zzzzunique99"})
+    case = api.get("/api/cases/1").json()["data"]
+    assert len(case["profiles"]) >= 2
+    ada = next(item for item in case["profiles"] if "Ada" in item["title"])
+    lookup = next(item for item in case["lookups"] if "zzzzunique99" in item["query"])
+    attached = api.post(
+        f"/api/cases/1/profiles/{ada['id']}/attach",
+        json={"lookup_id": lookup["id"]},
+    )
+    assert attached.status_code == 200
+    merged = api.get("/api/cases/1").json()["data"]["profiles"]
+    ada = next(item for item in merged if "Ada" in item["title"] or "zzzzunique99" in item.get("usernames", []))
+    assert "Ada Lovelace" in ada["names"]
+    assert "zzzzunique99" in ada["usernames"]
+    html = api.get(f"/api/cases/1/profiles/{ada['id']}/export.html")
+    assert html.status_code == 200
+    assert "Ada" in html.text
+    pdf = api.get(f"/api/cases/1/profiles/{ada['id']}/export.pdf")
+    assert pdf.status_code == 200
+    assert pdf.content[:4] == b"%PDF"
+
+
 def test_profiles_merge_shared_account():
     from app.profiles import build
 
