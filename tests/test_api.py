@@ -606,6 +606,13 @@ def test_detect_and_smart_phone_lookup(tmp_path):
     assert after["profiles"] == [] or all(item["id"] != profile_id for item in after["profiles"])
     skipped = api.post("/api/cases/1/lookup", json={"value": "+41446681800", "modules": ["email"]})
     assert skipped.status_code == 400
+    gone = api.delete("/api/cases/1/lookups/" + case["lookups"][0]["id"])
+    assert gone.status_code == 200
+    empty = api.get("/api/cases/1").json()["data"]
+    assert empty["lookups"] == []
+    wipe = api.delete("/api/cases/1")
+    assert wipe.status_code == 200
+    assert api.get("/api/cases/1").status_code == 404
 
 
 def test_attach_profile_and_export(tmp_path, monkeypatch):

@@ -174,6 +174,20 @@ def create_app(
             return fail("case_not_found", "No case with that id.", 404)
         return ok(case)
 
+    @app.delete("/api/cases/{case_id}")
+    def remove_case(case_id: int) -> JSONResponse:
+        if db.get_case(app.state.db_path, case_id) is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        db.delete_case(app.state.db_path, case_id)
+        return ok({"deleted": case_id})
+
+    @app.delete("/api/cases/{case_id}/lookups/{lookup_id}")
+    def remove_lookup(case_id: int, lookup_id: str) -> JSONResponse:
+        if db.get_case(app.state.db_path, case_id) is None:
+            return fail("case_not_found", "No case with that id.", 404)
+        removed = db.delete_lookup(app.state.db_path, case_id, lookup_id)
+        return ok({"deleted": lookup_id, "runs": removed})
+
     @app.post("/api/cases/{case_id}/profiles/{profile_id}/attach")
     async def attach_lookup(case_id: int, profile_id: int, request: Request) -> JSONResponse:
         case = load_case(case_id)

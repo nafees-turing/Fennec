@@ -119,17 +119,30 @@ function renderCases() {
     rows = top;
   }
   for (const item of rows) {
+    const row = document.createElement("div");
+    row.className = "case-row";
     const button = document.createElement("button");
     button.type = "button";
     button.title = item.name;
-    button.className = item.id === state.caseId ? "active tinted" : "tinted";
+    button.dataset.caseId = String(item.id);
+    button.className = item.id === state.caseId ? "active tinted pick" : "tinted pick";
     tint(button, item.id);
     button.append(icon("case"));
     const label = document.createElement("span");
     label.textContent = item.name;
     button.append(label);
     button.addEventListener("click", () => go(`/cases/${item.id}`));
-    caseList.append(button);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger tiny";
+    remove.textContent = "Delete";
+    remove.title = `Delete case ${item.name}`;
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteCase(item.id, item.name);
+    });
+    row.append(button, remove);
+    caseList.append(row);
   }
   if (!query && state.cases.length > rows.length) {
     const more = document.createElement("p");
@@ -149,6 +162,7 @@ function showWorkspace(open) {
   document.querySelector("#welcome").hidden = open;
   document.querySelector("#results").hidden = !open;
   document.querySelector("#export-links").hidden = !open;
+  document.querySelector("#delete-case").hidden = !open;
   document.querySelector("#profile-page").hidden = true;
   document.querySelector("#settings-page").hidden = true;
 }
@@ -264,12 +278,10 @@ function showTab(name) {
 }
 
 function paintCaseList() {
-  api("/api/cases").then((cases) => {
-    [...caseList.querySelectorAll("button")].forEach((button, index) => {
-      if (!cases[index]) return;
-      button.classList.toggle("active", cases[index].id === state.caseId);
-      tint(button, cases[index].id);
-    });
+  caseList.querySelectorAll("[data-case-id]").forEach((button) => {
+    const id = Number(button.dataset.caseId);
+    button.classList.toggle("active", id === state.caseId);
+    tint(button, id);
   });
 }
 
@@ -512,17 +524,25 @@ function renderProfiles(profiles) {
 }
 
 function actionBar(profile, large) {
+  const wrap = document.createElement("div");
+  const legend = document.createElement("p");
+  legend.className = "action-legend hint";
+  legend.textContent = large
+    ? "Look up more on this person using values already on the profile:"
+    : "Find more:";
+  wrap.append(legend);
   const bar = document.createElement("div");
   bar.className = large ? "save-actions" : "save-actions compact";
   for (const action of profile.actions || []) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = action.label;
-    button.title = `Search ${action.value}`;
+    button.title = `${action.label} using ${action.value}`;
     button.addEventListener("click", () => enrichProfile(profile.id, action.id));
     bar.append(button);
   }
-  return bar;
+  wrap.append(bar);
+  return wrap;
 }
 
 async function enrichProfile(profileId, setId) {
@@ -761,6 +781,13 @@ function paintLookupCards(host, lookups, emptyText) {
       hint.className = "hint";
       hint.textContent = "Preview only. Nothing is stored until you save.";
       card.append(hint);
+    } else if (lookup.id) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "danger tiny";
+      remove.textContent = "Delete search";
+      remove.addEventListener("click", () => deleteLookup(lookup.id, lookup.query));
+      card.append(remove);
     }
     const hits = (lookup.runs || []).filter((run) => (run.findings || []).length);
     if (!hits.length) {
@@ -921,6 +948,7 @@ function showSettingsPage() {
   document.querySelector("#welcome").hidden = true;
   document.querySelector("#results").hidden = true;
   document.querySelector("#export-links").hidden = true;
+  document.querySelector("#delete-case").hidden = true;
   document.querySelector("#profile-page").hidden = true;
   document.querySelector("#settings-page").hidden = false;
   document.querySelector("#case-kicker").textContent = "Preferences";
@@ -1014,6 +1042,39 @@ document.querySelector("#case-filter").addEventListener("input", (event) => {
 document.querySelector("#tool-filter").addEventListener("input", (event) => {
   state.toolQuery = event.currentTarget.value;
   renderTools();
+});
+
+async function deleteCase(id, name) {
+  if (!window.confirm(`Delete case “${name}” and everything in it?`)) return;
+  try {
+    await api(`/api/cases/${id}`, { method: "DELETE" });
+    if (state.caseId === id) {
+      state.caseId = null;
+      localStorage.removeItem("fennec.caseId");
+      history.pushState({}, "", "/");
+    }
+    setNotice("Case deleted.");
+    await loadCases();
+  } catch (error) {
+    setNotice(error.message);
+  }
+}
+
+async function deleteLookup(lookupId, query) {
+  if (!state.caseId) return;
+  if (!window.confirm(`Delete saved search “${query}”?`)) return;
+  try {
+    await api(`/api/cases/${state.caseId}/lookups/${lookupId}`, { method: "DELETE" });
+    setNotice("Search deleted.");
+    await openCase(state.caseId, true);
+  } catch (error) {
+    setNotice(error.message);
+  }
+}
+
+document.querySelector("#delete-case").addEventListener("click", () => {
+  const name = document.querySelector("#case-title").textContent;
+  if (state.caseId) deleteCase(state.caseId, name);
 });
 
 document.querySelector("#delete-profile").addEventListener("click", async () => {

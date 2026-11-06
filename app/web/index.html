@@ -82,11 +82,14 @@
           <p id="case-notes" class="notes"></p>
           <p id="case-stats" class="count"></p>
         </div>
-        <p id="export-links" class="export" hidden>
-          <a id="export-json" href="#"><svg class="icon hue-files"><use href="#i-export"/></svg> JSON</a>
-          <a id="export-html" href="#"><svg class="icon hue-network"><use href="#i-export"/></svg> HTML</a>
-          <a id="export-pdf" href="#"><svg class="icon hue-crypto"><use href="#i-export"/></svg> PDF</a>
-        </p>
+        <div class="top-actions">
+          <p id="export-links" class="export" hidden>
+            <a id="export-json" href="#"><svg class="icon hue-files"><use href="#i-export"/></svg> JSON</a>
+            <a id="export-html" href="#"><svg class="icon hue-network"><use href="#i-export"/></svg> HTML</a>
+            <a id="export-pdf" href="#"><svg class="icon hue-crypto"><use href="#i-export"/></svg> PDF</a>
+          </p>
+          <button type="button" id="delete-case" class="danger" hidden>Delete case</button>
+        </div>
       </header>
 
       <section id="welcome" class="welcome">

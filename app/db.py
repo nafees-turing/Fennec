@@ -108,6 +108,39 @@ def list_cases(path: Path) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def delete_case(path: Path, case_id: int) -> None:
+    with connect(path) as conn:
+        conn.execute("DELETE FROM findings WHERE case_id = ?", (case_id,))
+        conn.execute("DELETE FROM runs WHERE case_id = ?", (case_id,))
+        conn.execute("DELETE FROM identity_unions WHERE case_id = ?", (case_id,))
+        conn.execute("DELETE FROM profile_edits WHERE case_id = ?", (case_id,))
+        conn.execute("DELETE FROM pending_lookups WHERE case_id = ?", (case_id,))
+        conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+
+
+def delete_lookup(path: Path, case_id: int, lookup_id: str) -> int:
+    with connect(path) as conn:
+        run_ids = [
+            int(row["id"])
+            for row in conn.execute(
+                "SELECT id FROM runs WHERE case_id = ? AND lookup_id = ?",
+                (case_id, lookup_id),
+            ).fetchall()
+        ]
+        if not run_ids:
+            return 0
+        placeholders = ",".join("?" * len(run_ids))
+        conn.execute(
+            f"DELETE FROM findings WHERE case_id = ? AND run_id IN ({placeholders})",
+            [case_id, *run_ids],
+        )
+        cur = conn.execute(
+            "DELETE FROM runs WHERE case_id = ? AND lookup_id = ?",
+            (case_id, lookup_id),
+        )
+        return cur.rowcount
+
+
 def get_case(path: Path, case_id: int) -> dict | None:
     with connect(path) as conn:
         row = conn.execute("SELECT * FROM cases WHERE id = ?", (case_id,)).fetchone()
