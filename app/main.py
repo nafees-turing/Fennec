@@ -12,7 +12,7 @@ from app import pdf as pdf_export
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app import correlate, db, detect as detect_mod, profiles as profiles_mod
+from app import correlate, db, detect as detect_mod, keep, profiles as profiles_mod
 from app.modules.base import ModuleResult
 from app.modules.registry import DEFAULT_MODULES, execute, get_module, list_modules
 from app.netguard import NetworkGuard
@@ -304,7 +304,7 @@ async def run_module(app: FastAPI, case_id: int, module_id: str, value: str, loo
         result.status,
         value,
         result.error,
-        [item.as_dict() for item in result.findings],
+        keep.filter_findings([item.as_dict() for item in result.findings]),
         lookup_id=lookup_id,
     )
     return run, None

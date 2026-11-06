@@ -135,9 +135,4 @@ def run(raw: str, scanner=None) -> ModuleResult:
                 extra and "; ".join(extra) or "Site reports this email is registered.",
             )
         )
-    for row in limited:
-        domain = str(row.get("domain") or row.get("name") or "")
-        findings.append(
-            Finding("rate_limit", domain, "holehe", "low", "Site rate-limited the check.")
-        )
     return ModuleResult(status="ok", findings=findings)

@@ -101,7 +101,7 @@ def test_email_run_uses_injected_scanner(tmp_path, monkeypatch):
     kinds = {(item["kind"], item["value"]) for item in body["findings"]}
     assert ("email", "ada@example.com") in kinds
     assert ("account", "github.com") in kinds
-    assert ("rate_limit", "snapchat.com") in kinds
+    assert ("rate_limit", "snapchat.com") not in kinds
     assert ("account", "twitter.com") not in kinds
 
 
@@ -241,7 +241,7 @@ def test_username_run_uses_injected_scanner(tmp_path, monkeypatch):
     kinds = {(item["kind"], item["value"]) for item in body["findings"]}
     assert ("username", "octocat") in kinds
     assert ("account", "https://github.com/octocat") in kinds
-    assert ("rate_limit", "reddit") in kinds
+    assert ("rate_limit", "reddit") not in kinds
     assert ("account", "https://gitlab.com/octocat") not in kinds
 
 
@@ -402,7 +402,8 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
         (i["kind"], i["value"]) for i in social.json()["data"]["findings"]
     }
     certs = api.post("/api/cases/1/runs", json={"module": "certs", "value": "example.com"})
-    assert ("cert_name", "www.example.com") in {(i["kind"], i["value"]) for i in certs.json()["data"]["findings"]}
+    assert ("domain", "example.com") in {(i["kind"], i["value"]) for i in certs.json()["data"]["findings"]}
+    assert ("cert_name", "www.example.com") not in {(i["kind"], i["value"]) for i in certs.json()["data"]["findings"]}
     archive = api.post("/api/cases/1/runs", json={"module": "archive", "value": "example.com"})
     assert archive.status_code == 201
     assert any(i["kind"] == "url" and "web.archive.org" in i["value"] for i in archive.json()["data"]["findings"])
@@ -431,7 +432,8 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
     ptr = api.post("/api/cases/1/runs", json={"module": "rdns", "value": "1.1.1.1"})
     assert ("hostname", "one.one.one.one") in {(i["kind"], i["value"]) for i in ptr.json()["data"]["findings"]}
     idb = api.post("/api/cases/1/runs", json={"module": "internetdb", "value": "1.1.1.1"})
-    assert ("port", "443") in {(i["kind"], i["value"]) for i in idb.json()["data"]["findings"]}
+    assert ("hostname", "one.one.one.one") in {(i["kind"], i["value"]) for i in idb.json()["data"]["findings"]}
+    assert ("port", "443") not in {(i["kind"], i["value"]) for i in idb.json()["data"]["findings"]}
     gh = api.post("/api/cases/1/runs", json={"module": "github", "value": "octocat"})
     assert ("name", "The Octocat") in {(i["kind"], i["value"]) for i in gh.json()["data"]["findings"]}
     btc = api.post(
@@ -439,7 +441,8 @@ def test_name_address_social_certs_archive(tmp_path, monkeypatch):
         json={"module": "bitcoin", "value": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"},
     )
     assert btc.status_code == 201
-    assert any(i["kind"] == "balance" for i in btc.json()["data"]["findings"])
+    assert any(i["kind"] == "wallet" for i in btc.json()["data"]["findings"])
+    assert all(i["kind"] != "balance" for i in btc.json()["data"]["findings"])
     monkeypatch.setattr(
         "app.modules.gravatar.fetch_profile",
         lambda _email: {"hash": "abc", "entry": {"displayName": "Ada", "profileUrl": "https://gravatar.com/ada", "accounts": []}},

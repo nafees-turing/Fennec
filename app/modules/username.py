@@ -67,19 +67,4 @@ def run(raw: str, scanner=None) -> ModuleResult:
                 f"HTTP {row.get('status')} on a public profile URL",
             )
         )
-    for row in unknown:
-        if row.get("error"):
-            findings.append(
-                Finding("rate_limit", str(row.get("name")), "fennec", "low", str(row.get("error")))
-            )
-        elif row.get("status"):
-            findings.append(
-                Finding(
-                    "rate_limit",
-                    str(row.get("name")),
-                    "fennec",
-                    "low",
-                    f"HTTP {row.get('status')}; not treated as a confirmed profile",
-                )
-            )
     return ModuleResult(status="ok", findings=findings)

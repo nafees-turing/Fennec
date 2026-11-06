@@ -4,6 +4,7 @@ from difflib import SequenceMatcher
 from urllib.parse import urlparse
 
 from app.detect import classify
+from app.keep import PERSON_MODULES, is_relevant
 
 SKIP = {
     "rate_limit",
@@ -116,12 +117,22 @@ def build(findings: list[dict], lookups: list[dict] | None = None) -> list[dict]
         if finding_id is not None:
             finding_ids[uf.find(root_key)].append(finding_id)
 
+    run_module: dict[int, str] = {}
+    if lookups:
+        for lookup in lookups:
+            for run in lookup.get("runs") or []:
+                if run.get("id") is not None:
+                    run_module[int(run["id"])] = str(run.get("module_id") or "")
+
     run_keys: dict[int, list[str]] = defaultdict(list)
     for row in findings:
         kind = str(row.get("kind") or "")
+        value = str(row.get("value") or "")
+        if not is_relevant(kind, value, str(row.get("evidence") or "")):
+            continue
         if kind in SKIP:
             continue
-        keys = identity_keys(kind, str(row.get("value") or ""))
+        keys = identity_keys(kind, value)
         if not keys:
             continue
         run_id = row.get("run_id")
@@ -149,17 +160,24 @@ def build(findings: list[dict], lookups: list[dict] | None = None) -> list[dict]
     if lookups:
         for lookup in lookups:
             query = str(lookup.get("query") or "")
-            qkeys = _from_query(query)
-            if not qkeys:
-                continue
             detected = classify(query).get("detected")
+            if detected in {"ip", "domain", "bitcoin", "ethereum"}:
+                continue
+            has_hit = False
+            for run in lookup.get("runs") or []:
+                if str(run.get("module_id") or "") not in PERSON_MODULES:
+                    continue
+                if run.get("status") == "ok" and run.get("findings"):
+                    has_hit = True
+                    break
+            qkeys = _from_query(query)
+            if not qkeys or not has_hit:
+                continue
             kind = {
                 "email": "email",
                 "phone": "phone",
                 "username": "username",
                 "name": "name",
-                "bitcoin": "wallet",
-                "ethereum": "wallet",
             }.get(detected or "", "")
             if kind:
                 attach(qkeys, None)
@@ -178,12 +196,25 @@ def build(findings: list[dict], lookups: list[dict] | None = None) -> list[dict]
     for row in list(findings) + extra:
         kind = str(row.get("kind") or "")
         value = str(row.get("value") or "").strip()
+        if not is_relevant(kind, value, str(row.get("evidence") or "")):
+            continue
         if kind in SKIP or not value or NOISE_VALUE.search(value):
+            continue
+        module_id = run_module.get(int(row["run_id"])) if row.get("run_id") is not None else ""
+        if module_id and module_id not in PERSON_MODULES and kind not in {"email", "phone", "username", "name", "account", "url"}:
             continue
         keys = identity_keys(kind, value)
         run_id = row.get("run_id")
         if not keys and run_id in run_keys and run_keys[run_id]:
             keys = [run_keys[run_id][0]]
+        if not keys and module_id in PERSON_MODULES and row.get("run_id") is not None:
+            for lookup in lookups or []:
+                for run in lookup.get("runs") or []:
+                    if run.get("id") == row.get("run_id"):
+                        qkeys = _from_query(str(lookup.get("query") or ""))
+                        if qkeys:
+                            keys = qkeys
+                        break
         if not keys:
             continue
         buckets[uf.find(keys[0])].append(row)
