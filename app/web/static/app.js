@@ -129,6 +129,7 @@ function renderCases() {
     tint(button, item.id);
     button.append(icon("case"));
     const label = document.createElement("span");
+    label.className = "rail-label";
     label.textContent = item.name;
     button.append(label);
     button.addEventListener("click", () => go(`/cases/${item.id}`));
@@ -395,6 +396,7 @@ function renderTools() {
       button.className = state.selected.has(module.id) ? "related" : "";
       button.append(icon(TOOL_ICONS[module.id] || module.category || "dot", module.category));
       const label = document.createElement("span");
+      label.className = "rail-label";
       label.textContent = module.title;
       button.append(label);
       if (module.network) {
