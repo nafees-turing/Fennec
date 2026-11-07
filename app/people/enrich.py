@@ -13,6 +13,8 @@ SETS = {
             "keybase",
             "reddit",
             "devto",
+            "steam",
+            "roblox",
         ],
     },
     "email": {

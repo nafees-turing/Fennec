@@ -34,6 +34,12 @@ def test_attached_profile_without_overlap():
     assert attached_profile("testing", [profile]) is None
 
 
+def test_handle_offers_steam_and_roblox():
+    modules = [item["module"] for item in classify("ada")["matches"]]
+    assert "steam" in modules
+    assert "roblox" in modules
+
+
 def test_seed_value_username():
     assert seed_value({"usernames": ["ada"]}, "username") == "ada"
 

@@ -568,6 +568,8 @@ def test_detect_and_smart_phone_lookup(tmp_path):
         "devto",
         "twitter",
         "linkedin",
+        "steam",
+        "roblox",
     ]
     dotted = api.get("/api/detect", params={"q": "202.83.232.198"})
     assert dotted.json()["data"]["detected"] == "ip"

@@ -304,6 +304,8 @@ const TOOL_ICONS = {
   devto: "social",
   twitter: "social",
   linkedin: "social",
+  steam: "social",
+  roblox: "social",
   wikipedia: "basic",
   pgp: "basic",
   address: "addresses",
